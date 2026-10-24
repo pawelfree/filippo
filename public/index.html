@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Filippo · Taksonomia gramatyki</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">F</span><span>filippo <small>/ gramatyka</small></span></div>
+      <span class="topbar-note">Taksonomia języka włoskiego</span>
+    </header>
+    <main class="shell">
+      <section class="intro">
+        <div>
+          <p class="eyebrow">Atlas gramatyczny</p>
+          <h1>Taksonomia <em>włoska</em></h1>
+          <p>Przeglądaj kategorie, konstrukcje i konkretne użycia. Wybierz wariant, aby zobaczyć opis, poziom CEFR i powiązania.</p>
+        </div>
+        <div class="stats" id="stats" aria-label="Liczba elementów taksonomii"></div>
+      </section>
+      <div id="error" class="error" role="alert" hidden></div>
+      <section id="browser" class="browser" aria-label="Przeglądarka taksonomii" hidden>
+        <aside class="panel categories">
+          <div class="panel-heading"><span>01 / Kategorie</span><span id="category-count"></span></div>
+          <nav id="categories" aria-label="Kategorie"></nav>
+        </aside>
+        <section class="panel middle">
+          <div class="panel-heading"><span>02 / Konstrukcje i warianty</span><span id="variant-count"></span></div>
+          <label class="search-label" for="search">Szukaj w kategorii</label>
+          <input id="search" type="search" placeholder="Nazwa, definicja lub ID…" autocomplete="off" />
+          <div id="list" class="list"></div>
+        </section>
+        <article class="panel detail" id="detail" aria-live="polite"></article>
+      </section>
+    </main>
+  </body>
+</html>

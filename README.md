@@ -1,6 +1,6 @@
 # Filippo · taksonomia gramatyki
 
-Prosty, tylko do odczytu atlas włoskiej taksonomii gramatycznej zbudowany w NestJS. Dane źródłowe znajdują się w [`.ai/docs/grammar_taxonomy/taxonomy.json`](.ai/docs/grammar_taxonomy/taxonomy.json), a ich schemat w [`.ai/docs/grammar_taxonomy/taxonomy.schema.json`](.ai/docs/grammar_taxonomy/taxonomy.schema.json).
+Prosty, tylko do odczytu atlas włoskiej taksonomii gramatycznej oraz profilu kompetencyjnego, zbudowany w NestJS. Dane źródłowe znajdują się w `.ai/docs/`.
 
 ## Uruchomienie
 
@@ -11,11 +11,11 @@ npm install
 npm run start:dev
 ```
 
-Otwórz `http://localhost:3000`. Aplikacja pokazuje kategorie, konstrukcje, warianty, ich definicje, orientacyjny poziom CEFR, dostępne przykłady i relacje. Wyszukiwarka filtruje warianty w wybranej kategorii.
+Otwórz `http://localhost:3000`. Strona główna pokazuje kategorie, konstrukcje, warianty, ich definicje, orientacyjny poziom CEFR, dostępne przykłady i relacje. Druga strona, `http://localhost:3000/profile.html`, pokazuje szacowany poziom użytkownika CEFR osobno od szacunków opanowania wariantów, a także wyniki ćwiczeń i zidentyfikowane trudności. Wyszukiwarka filtruje elementy wybranej kategorii.
 
 ## Walidacja
 
-Podczas uruchamiania serwer czyta oba pliki z `.ai/docs/grammar_taxonomy` i sprawdza dane według JSON Schema draft 2020-12. Jeśli walidacja się nie powiedzie, aplikacja nie startuje i wypisuje ścieżki błędnych pól. Walidacja dotyczy reguł zapisanych w schemacie; nie dopisuje kontroli semantycznych relacji lub poprawności językowej.
+Podczas uruchamiania serwer waliduje taksonomię względem `.ai/docs/grammar_taxonomy/taxonomy.schema.json`, a profil względem `.ai/docs/competence_profile/profile.schema.json`, według JSON Schema draft 2020-12. Sprawdza też skrót SHA-256 taksonomii, zgodność zestawu ID wariantów oraz ograniczenia liczników opisane w schemacie profilu. Jeśli kontrola się nie powiedzie, aplikacja nie startuje i wypisuje szczegóły błędu. Serwer nasłuchuje lokalnie pod adresem `127.0.0.1`.
 
 ```sh
 npm test

@@ -4,7 +4,7 @@ import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { abortOnError: true });
-  await app.listen(Number(process.env.PORT) || 3000);
+  await app.listen(Number(process.env.PORT) || 3000, '127.0.0.1');
 }
 
 bootstrap().catch((error: unknown) => {

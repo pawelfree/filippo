@@ -3,10 +3,12 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'node:path';
 import { TaxonomyController } from './taxonomy/taxonomy.controller';
 import { TaxonomyService } from './taxonomy/taxonomy.service';
+import { ProfileController } from './profile/profile.controller';
+import { ProfileService } from './profile/profile.service';
 
 @Module({
   imports: [ServeStaticModule.forRoot({ rootPath: join(process.cwd(), 'public') })],
-  controllers: [TaxonomyController],
-  providers: [TaxonomyService],
+  controllers: [TaxonomyController, ProfileController],
+  providers: [TaxonomyService, ProfileService],
 })
 export class AppModule {}

@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/italian-grammar-profile/1.2.0",
+  "title": "Italian grammar learner profile",
+  "description": "The learner's grammar competency state used to select and generate exercises. A complete profile contains one competency record for every variant in the referenced taxonomy, including variants the learner has never practiced. Categories and constructions group variants; CEFR aspects refine a variant but are not separate taxonomy nodes or independent competencies. Scores from 0 to 1 are estimates, not CEFR levels. Represent missing assessment data as null where allowed, never as 0.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "profile_id", "learner_id", "language", "taxonomy", "estimated_user_level", "created_at", "updated_at", "competencies"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "1.2.0", "description": "Version of this profile structure for data migrations. Independent of the taxonomy schema version, taxonomy content fingerprint, and assessment algorithm version."},
+    "profile_id": {"type": "string", "minLength": 1, "description": "Stable, immutable identifier of this profile."},
+    "learner_id": {"type": "string", "minLength": 1, "description": "Learner identifier within the application. Do not put a name or email address here."},
+    "language": {"type": "string", "const": "it", "description": "ISO 639-1 code of the target language. This schema covers Italian grammar."},
+    "taxonomy": {"$ref": "#/$defs/taxonomy"},
+    "estimated_user_level": {"$ref": "#/$defs/estimated_user_level"},
+    "created_at": {"type": "string", "format": "date-time", "description": "Profile creation date and time in RFC 3339 format, including a time zone."},
+    "updated_at": {"type": "string", "format": "date-time", "description": "Date and time of the latest profile update in RFC 3339 format, including a time zone."},
+    "competencies": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/competency"}, "description": "One record for every variant in the referenced taxonomy, including unpracticed variants with mastery=null, confidence=0, and zero exposure and performance counts. Each taxonomy_node_id must be unique and valid. JSON Schema cannot verify coverage against an external taxonomy; the application must compare the ID sets."}
+  },
+  "$defs": {
+    "estimated_user_level": {
+      "type": "object", "additionalProperties": false,
+      "description": "One approximate CEFR level of the learner, used to choose the general complexity of sentences in cloze exercises. It is an estimate, not a certification. Do not lower it merely because the exercise practices basic words, and do not use it as a hard cap on the target grammar variant. Individual vocabulary knowledge must be handled separately by the exercise generator.",
+      "required": ["cefr_level", "confidence", "assessment"],
+      "if": {"properties": {"cefr_level": {"type": "null"}}},
+      "then": {"properties": {"confidence": {"const": 0}, "assessment": {"properties": {"assessed_at": {"type": "null"}, "source": {"const": "none"}, "method": {"const": "none"}, "evidence_count": {"const": 0}, "algorithm_version": {"type": "null"}}}}},
+      "else": {"properties": {"assessment": {"properties": {"assessed_at": {"type": "string"}, "source": {"not": {"const": "none"}}, "method": {"not": {"const": "none"}}}}}},
+      "properties": {
+        "cefr_level": {"type": ["string", "null"], "enum": ["A1", "A2", "B1", "B2", "C1", "C2", null], "description": "Single estimated learner level on the CEFR scale. null means that the available evidence does not support an estimate. This is the learner's level, not a CEFR label copied from a taxonomy variant."},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1, "description": "Confidence in the estimated learner level from 0 to 1. Use 0 when cefr_level is null; limited or narrow evidence should lower the value."},
+        "assessment": {"$ref": "#/$defs/level_assessment"}
+      }
+    },
+    "level_assessment": {
+      "type": "object", "additionalProperties": false,
+      "description": "Provenance of the current overall learner-level estimate.",
+      "required": ["assessed_at", "source", "method", "evidence_count", "algorithm_version"],
+      "properties": {
+        "assessed_at": {"type": ["string", "null"], "format": "date-time", "description": "Time this learner-level estimate was calculated or approved in RFC 3339 format; null when cefr_level is null."},
+        "source": {"type": "string", "enum": ["none", "diagnostic", "practice", "import", "manual"], "description": "Main source of the level estimate: diagnostic exercise, ongoing practice, import, or manual assessment. none means no estimate."},
+        "method": {"type": "string", "enum": ["none", "automatic", "manual", "hybrid"], "description": "How the level was estimated: automatically, manually, or by combining both. none means no estimate."},
+        "evidence_count": {"type": "integer", "minimum": 0, "description": "Number of assessed exercise observations used for the current learner-level estimate; this is not the number of taxonomy variants."},
+        "algorithm_version": {"type": ["string", "null"], "minLength": 1, "description": "Version of the level-estimation algorithm, or null for a fully manual assessment or no estimate."}
+      }
+    },
+    "taxonomy": {
+      "type": "object", "additionalProperties": false,
+      "description": "Unambiguous reference to the grammar taxonomy. The source taxonomy has a schema_version but no separate content release version, so sha256 pins its exact content. The taxonomy stores names, definitions, CEFR metadata, and relationships; this profile stores learner state.",
+      "required": ["id", "schema_version", "sha256", "uri"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1, "description": "Stable taxonomy identifier, for example italian-grammar."},
+        "schema_version": {"type": "string", "minLength": 1, "description": "Value of schema_version in the referenced taxonomy file. This identifies the taxonomy file format, not its specific content revision."},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$", "description": "SHA-256 digest of the exact taxonomy JSON file. Use it to detect content changes and verify that competency IDs are interpreted against the intended revision."},
+        "uri": {"type": "string", "format": "uri", "description": "Location of the taxonomy document available to the exercise generator. A file URI is valid for a local application; another deployment must provide an accessible location. The JSON Schema validator does not fetch it."}
+      }
+    },
+    "competency": {
+      "type": "object", "additionalProperties": false,
+      "description": "Learner state for one taxonomy variant. Exercises should target this variant or use its relationships and aspect descriptions in the taxonomy. Do not count CEFR aspects as independent competencies.",
+      "required": ["taxonomy_node_id", "mastery", "confidence", "trend", "exposure", "performance", "difficulties", "assessment"],
+      "allOf": [
+        {
+          "if": {"properties": {"mastery": {"type": "null"}}},
+          "then": {
+            "properties": {
+              "confidence": {"const": 0},
+              "trend": {"const": "insufficient_data"},
+              "assessment": {
+                "properties": {
+                  "assessed_at": {"type": "null"},
+                  "source": {"const": "none"},
+                  "method": {"const": "none"},
+                  "evidence_count": {"const": 0},
+                  "evidence_window_start": {"type": "null"},
+                  "evidence_window_end": {"type": "null"},
+                  "algorithm_version": {"type": "null"}
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "assessment": {
+                "properties": {
+                  "assessed_at": {"type": "string"},
+                  "source": {"not": {"const": "none"}},
+                  "method": {"not": {"const": "none"}}
+                }
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "taxonomy_node_id": {"type": "string", "pattern": "^CAT-[0-9]{2}-CON-[0-9]{2}-VAR-[0-9]{3}$", "description": "Stable variant ID from the taxonomy file pinned by taxonomy.sha256, for example CAT-01-CON-01-VAR-001. This is not a category, construction, or free-text name."},
+        "mastery": {"type": ["number", "null"], "minimum": 0, "maximum": 1, "description": "Estimated command of the topic, from 0 (no command) to 1 (full command). null means no reliable estimate; never use 0 to mean missing data."},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1, "description": "Confidence in the mastery estimate, from 0 to 1. Few observations, stale evidence, or a narrow range of contexts should lower it. Use 0 when mastery is null."},
+        "trend": {"type": "string", "enum": ["improving", "stable", "declining", "insufficient_data"], "description": "Direction of performance across successive assessments: improving, stable, declining, or insufficient_data when comparison is unsupported. This is distinct from mastery."},
+        "exposure": {"$ref": "#/$defs/exposure"},
+        "performance": {"$ref": "#/$defs/performance"},
+        "difficulties": {"type": "array", "items": {"$ref": "#/$defs/difficulty"}, "description": "Specific observed problems within this competency. An empty array means no identified difficulty, not that the learner lacks this competency."},
+        "assessment": {"$ref": "#/$defs/assessment"}
+      }
+    },
+    "exposure": {
+      "type": "object", "additionalProperties": false,
+      "description": "How many opportunities the learner had to practice this topic. Exposure alone does not establish mastery.",
+      "required": ["tasks_shown", "tasks_attempted", "last_shown_at", "task_types_seen"],
+      "properties": {
+        "tasks_shown": {"type": "integer", "minimum": 0, "description": "Total number of tasks shown to the learner for this node, including tasks that may have been skipped."},
+        "tasks_attempted": {"type": "integer", "minimum": 0, "description": "Total number of tasks on which the learner attempted an answer. Must not exceed tasks_shown; the application checks this relationship."},
+        "last_shown_at": {"type": ["string", "null"], "format": "date-time", "description": "Time the most recent task was shown, in RFC 3339 format; null if there has been no exposure."},
+        "task_types_seen": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/task_type"}, "description": "Task formats actually shown to the learner. Helps avoid judging mastery from only one task format."}
+      }
+    },
+    "performance": {
+      "type": "object", "additionalProperties": false,
+      "description": "Aggregated outcomes of first answers. Counts refer to tasks, not individual clicks or answer revisions.",
+      "required": ["first_attempts", "first_attempt_correct", "recent_window_size", "recent_first_attempts", "recent_first_attempt_correct", "last_attempt_at"],
+      "properties": {
+        "first_attempts": {"type": "integer", "minimum": 0, "description": "Number of graded first answers across the full history; must not exceed exposure.tasks_attempted."},
+        "first_attempt_correct": {"type": "integer", "minimum": 0, "description": "Number of correct first answers across the full history; must not exceed first_attempts."},
+        "recent_window_size": {"type": "integer", "minimum": 1, "description": "Maximum number of recent graded answers used for recent_* fields. Keep this fixed for a given assessment setup, for example 20."},
+        "recent_first_attempts": {"type": "integer", "minimum": 0, "description": "Number of graded first answers available in the recent window; must not exceed recent_window_size or first_attempts."},
+        "recent_first_attempt_correct": {"type": "integer", "minimum": 0, "description": "Number of correct first answers in the recent window; must not exceed recent_first_attempts."},
+        "last_attempt_at": {"type": ["string", "null"], "format": "date-time", "description": "Time of the latest answer attempt in RFC 3339 format; null if there have been no attempts."}
+      }
+    },
+    "difficulty": {
+      "type": "object", "additionalProperties": false,
+      "description": "One recurring or significant difficulty supported by observations, including the conditions in which it appears.",
+      "required": ["code", "description", "severity", "contexts", "evidence"],
+      "properties": {
+        "code": {"type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$", "description": "Stable error-type code within this competency, for example auxiliary-selection. Use it to group similar observations."},
+        "description": {"type": "string", "minLength": 1, "description": "Short, AI-readable explanation of the error and the correct rule. Do not include the learner's personal information."},
+        "severity": {"type": "string", "enum": ["low", "medium", "high"], "description": "How strongly this problem should affect exercise selection: low, medium, or high. This rates the difficulty, not the learner's overall level."},
+        "contexts": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/context"}, "description": "Contexts in which the difficulty was observed. The generator should practice these contexts and also test transfer to others."},
+        "evidence": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/evidence"}, "description": "Representative, traceable observations supporting this difficulty. The list may be limited to the newest or most informative examples."}
+      }
+    },
+    "context": {
+      "type": "object", "additionalProperties": false,
+      "description": "Task conditions in which the error occurred. Describes the stimulus, not a trait of the learner.",
+      "required": ["task_type", "grammar_context", "communication_context"],
+      "properties": {
+        "task_type": {"$ref": "#/$defs/task_type"},
+        "grammar_context": {"type": "string", "minLength": 1, "description": "Relevant grammatical condition, for example a motion verb in passato prossimo."},
+        "communication_context": {"type": "string", "minLength": 1, "description": "Brief semantic or communicative setting of the task, for example recounting a trip."}
+      }
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "description": "A single error observation that can be linked to a task and reviewed. Keep answer text short and free of personal information.",
+      "required": ["activity_id", "item_id", "observed_at", "task_type", "expected_answer", "learner_answer"],
+      "properties": {
+        "activity_id": {"type": "string", "minLength": 1, "description": "Identifier of the session or activity in which this observation was recorded."},
+        "item_id": {"type": "string", "minLength": 1, "description": "Identifier of the specific task within that activity."},
+        "observed_at": {"type": "string", "format": "date-time", "description": "Time the error was observed, in RFC 3339 format."},
+        "task_type": {"$ref": "#/$defs/task_type"},
+        "expected_answer": {"type": "string", "minLength": 1, "description": "Expected correct answer or relevant excerpt; helps the AI understand the rule being tested."},
+        "learner_answer": {"type": "string", "minLength": 1, "description": "Relevant excerpt of the learner's answer showing the error. Do not store unnecessary text or personal information."}
+      }
+    },
+    "assessment": {
+      "type": "object", "additionalProperties": false,
+      "description": "Provenance of the current mastery, confidence, and trend values. Distinguishes a fresh practice-based estimate from an import or manual adjustment.",
+      "required": ["assessed_at", "source", "method", "evidence_count", "evidence_window_start", "evidence_window_end", "algorithm_version"],
+      "properties": {
+        "assessed_at": {"type": ["string", "null"], "format": "date-time", "description": "Time the current estimate was calculated or approved, in RFC 3339 format; null when mastery is null."},
+        "source": {"type": "string", "enum": ["none", "diagnostic", "practice", "import", "manual"], "description": "Main source of assessment data: diagnostic test, ongoing practice, import, or manual assessment. none means no assessment."},
+        "method": {"type": "string", "enum": ["none", "automatic", "manual", "hybrid"], "description": "How the current estimate was determined: automatically, manually, or by combining both. none means no assessment."},
+        "evidence_count": {"type": "integer", "minimum": 0, "description": "Number of observations used in the latest assessment. This need not equal the length of difficulties.evidence, which contains only selected error examples."},
+        "evidence_window_start": {"type": ["string", "null"], "format": "date-time", "description": "Start of the observation window used for the assessment, or null if the assessment was not based on a window of events."},
+        "evidence_window_end": {"type": ["string", "null"], "format": "date-time", "description": "End of the observation window used for the assessment, or null if the assessment was not based on a window of events."},
+        "algorithm_version": {"type": ["string", "null"], "minLength": 1, "description": "Version of the algorithm calculating mastery, confidence, and trend. null for entirely manual assessments."}
+      }
+    },
+    "task_type": {
+      "type": "string", "enum": ["fill_blank", "multiple_choice", "transformation", "translation", "free_response"],
+      "description": "Task format: fill-in-the-blank, multiple choice, transformation, translation, or free response. A shared vocabulary makes exposure, contexts, and evidence comparable."
+    }
+  }
+}

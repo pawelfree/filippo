@@ -12,6 +12,7 @@
 .competency-row{width:100%;border:1px solid transparent;background:#fff;text-align:left;border-radius:9px;padding:10px 11px;margin:2px 0;color:#334a3b}
 .competency-row:hover,.competency-row:focus-visible{background:#f5f8f4}
 .competency-row.active{border-color:#d1e5d2;background:#eef6ed}
+.competency-row.prior-only{background:#fbfcfa}
 .competency-title{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .competency-title strong{font-size:12px;line-height:1.35;font-weight:650}
 .score{font-size:11px;font-weight:800;color:#367b51;white-space:nowrap}
@@ -46,5 +47,9 @@
 .level-description{margin:0;color:#78877c;font-size:12px;line-height:1.5}
 .level-meta{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
 .level-meta span{padding:5px 8px;border:1px solid #e2ebe0;border-radius:6px;background:#fff;color:#748579;font-size:10px}
+.model-note{margin:-8px 0 20px;border-bottom:1px solid #e3e9e1}
+.model-note[hidden]{display:none}
+.model-note summary{width:max-content;padding:8px 0;color:#578065;font-size:11px;font-weight:700;cursor:pointer}
+.model-note p{margin:5px 0 12px;color:#79867c;font-size:11px;line-height:1.6}
 @media(max-width:800px){.profile-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.profile-updated{margin-top:18px}.profile-intro{display:block}}
 @media(max-width:640px){.page-nav{gap:0}.page-nav a{padding:8px 7px;font-size:11px}.profile-summary{gap:7px}.summary-card{padding:12px}.summary-card strong{font-size:20px}.level-card{grid-template-columns:58px minmax(0,1fr);gap:13px;padding:15px}.level-value{width:56px;height:56px;border-radius:11px;font-size:19px}.level-information h2{font-size:17px}}

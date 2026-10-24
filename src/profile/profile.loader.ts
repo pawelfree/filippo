@@ -59,12 +59,31 @@ export function loadCompetenceProfile(
   for (const competency of profile.competencies) {
     const { exposure, performance } = competency;
     const issues: string[] = [];
+    const model = profile.bayesian_model;
+    const effectiveN = competency.alpha + competency.beta - model.prior_alpha - model.prior_beta;
+    const expectedMastery = competency.alpha / (competency.alpha + competency.beta);
+    const expectedConfidence = effectiveN / (effectiveN + model.confidence_scale);
+    const expectedTrend = effectiveN < model.trend_min_effective_n
+      ? 'insufficient_data'
+      : competency.trend_state.smoothed_delta > model.trend_threshold
+        ? 'improving'
+        : competency.trend_state.smoothed_delta < -model.trend_threshold
+          ? 'declining'
+          : 'stable';
+
     if (exposure.tasks_attempted > exposure.tasks_shown) issues.push('attempted tasks exceed shown tasks');
     if (performance.first_attempts > exposure.tasks_attempted) issues.push('graded attempts exceed attempted tasks');
     if (performance.first_attempt_correct > performance.first_attempts) issues.push('correct attempts exceed graded attempts');
-    if (performance.recent_first_attempts > performance.recent_window_size) issues.push('recent attempts exceed the recent window');
-    if (performance.recent_first_attempts > performance.first_attempts) issues.push('recent attempts exceed total attempts');
-    if (performance.recent_first_attempt_correct > performance.recent_first_attempts) issues.push('recent correct attempts exceed recent attempts');
+    if (effectiveN < -1e-9) issues.push('effective evidence is below zero');
+    if (Math.abs(competency.mastery - expectedMastery) > 1e-9) issues.push('mastery does not match alpha / (alpha + beta)');
+    if (Math.abs(competency.confidence - expectedConfidence) > 1e-9) issues.push('confidence does not match effective evidence and confidence scale');
+    if (competency.trend !== expectedTrend) issues.push(`trend does not match model state (expected ${expectedTrend})`);
+    if (competency.trend_state.assessable_updates !== competency.assessment.evidence_count) {
+      issues.push('trend updates and assessment evidence count differ');
+    }
+    if ((competency.trend_state.assessable_updates === 0) !== (competency.trend_state.previous_mastery === null)) {
+      issues.push('previous mastery must be null only before the first assessable update');
+    }
     if (issues.length) consistencyErrors.push(`${competency.taxonomy_node_id}: ${issues.join('; ')}.`);
   }
 

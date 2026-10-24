@@ -1,0 +1,20 @@
+{
+  "bayesian_model": {
+    "prior_alpha": 1,
+    "prior_beta": 1,
+    "confidence_scale": 10,
+    "diagnostic_weights": {
+      "direct": 1,
+      "indirect": 0.5,
+      "not_assessable": 0
+    },
+    "trend_ema_factor": 0.2,
+    "trend_threshold": 0.01,
+    "trend_min_effective_n": 10
+  },
+  "difficulty_parameters": {
+    "medium_min_distinct_presentations": 2,
+    "high_min_distinct_presentations": 4,
+    "max_evidence_per_difficulty": 5
+  }
+}

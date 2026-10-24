@@ -15,7 +15,7 @@ Otwórz `http://localhost:3000`. Strona główna pokazuje kategorie, konstrukcje
 
 ## Walidacja
 
-Podczas uruchamiania serwer waliduje taksonomię względem `.ai/docs/grammar_taxonomy/taxonomy.schema.json`, a profil względem `.ai/docs/competence_profile/profile.schema.json`, według JSON Schema draft 2020-12. Sprawdza też skrót SHA-256 taksonomii, zgodność zestawu ID wariantów oraz ograniczenia liczników opisane w schemacie profilu. Jeśli kontrola się nie powiedzie, aplikacja nie startuje i wypisuje szczegóły błędu. Serwer nasłuchuje lokalnie pod adresem `127.0.0.1`.
+Podczas uruchamiania serwer waliduje taksonomię względem `.ai/docs/grammar_taxonomy/taxonomy.schema.json`, a profil względem `.ai/docs/competence_profile/profile.schema.json`, według JSON Schema draft 2020-12. Sprawdza też skrót SHA-256 taksonomii, zgodność zestawu ID wariantów, liczniki oraz zgodność wyliczonych mastery, confidence i trendu z modelem Beta-Binomial. Prior-only ma mastery 0.5 i confidence 0, więc nie jest prezentowany jako dowód opanowania. Jeśli kontrola się nie powiedzie, aplikacja nie startuje i wypisuje szczegóły błędu. Serwer nasłuchuje lokalnie pod adresem `127.0.0.1`.
 
 ```sh
 npm test
@@ -23,4 +23,4 @@ npm run build
 npm start
 ```
 
-Endpoint `/api/taxonomy` zwraca zwalidowane dane. Serwer zakłada uruchomienie z katalogu głównego repozytorium. Domyślny port to 3000; można go ustawić zmienną `PORT`.
+Endpointy `/api/taxonomy` i `/api/profile` zwracają zwalidowane dane. Serwer zakłada uruchomienie z katalogu głównego repozytorium. Domyślny port to 3000; można go ustawić zmienną `PORT`.

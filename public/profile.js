@@ -2,6 +2,7 @@ const ui = {
   browser: document.getElementById('profile-browser'),
   error: document.getElementById('error'),
   summary: document.getElementById('summary'),
+  modelNote: document.getElementById('model-note'),
   estimatedLevel: document.getElementById('estimated-level'),
   updated: document.getElementById('updated'),
   categories: document.getElementById('categories'),
@@ -53,6 +54,19 @@ function percent(value) {
   return `${Math.round(value * 100)}%`;
 }
 
+function effectiveEvidence(competency) {
+  const model = profile.bayesian_model;
+  return Math.max(0, competency.alpha + competency.beta - model.prior_alpha - model.prior_beta);
+}
+
+function hasEvidence(competency) {
+  return effectiveEvidence(competency) > 1e-9;
+}
+
+function number(value, digits = 2) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(digits);
+}
+
 function categoryCompetencies(categoryId) {
   return taxonomy.variants
     .filter((variant) => constructionById.get(variant.construction_id)?.category_id === categoryId)
@@ -67,7 +81,7 @@ function addSummary(value, label) {
 }
 
 function renderSummary() {
-  const assessed = profile.competencies.filter((item) => item.mastery !== null);
+  const assessed = profile.competencies.filter(hasEvidence);
   const average = assessed.length
     ? percent(assessed.reduce((sum, item) => sum + item.mastery, 0) / assessed.length)
     : '—';
@@ -80,6 +94,18 @@ function renderSummary() {
   addSummary(String(difficulties), 'zapisanych trudności');
   ui.updated.textContent = `Aktualizacja: ${new Date(profile.updated_at).toLocaleDateString('pl-PL')}`;
   renderEstimatedLevel();
+  renderModelNote();
+}
+
+function renderModelNote() {
+  const model = profile.bayesian_model;
+  ui.modelNote.replaceChildren();
+  const details = el('details', '');
+  details.append(el('summary', '', 'Jak czytać wyniki modelu Beta-Binomialnego'));
+  details.append(el('p', '', `Mastery = α / (α + β). Start modelu to α=${number(model.prior_alpha)} i β=${number(model.prior_beta)}, więc prior wynosi 50% i sam w sobie nie świadczy o opanowaniu. Kompetencje bez dowodów mają confidence 0.`));
+  details.append(el('p', '', `Efektywna liczba dowodów n = α + β − prior α − prior β. Pewność = n / (n + ${number(model.confidence_scale)}). Wagi dowodów: bezpośrednie ${number(model.diagnostic_weights.direct)}, pośrednie ${number(model.diagnostic_weights.indirect)}, nieocenialne ${number(model.diagnostic_weights.not_assessable)}. Trend jest oceniany po n ≥ ${number(model.trend_min_effective_n)}; EMA λ=${number(model.trend_ema_factor)}, próg ±${number(model.trend_threshold)}.`));
+  ui.modelNote.append(details);
+  ui.modelNote.hidden = false;
 }
 
 function renderEstimatedLevel() {
@@ -116,7 +142,7 @@ function renderCategories() {
   ui.categoryCount.textContent = String(taxonomy.categories.length);
   for (const category of taxonomy.categories) {
     const competencies = categoryCompetencies(category.id);
-    const assessed = competencies.filter((item) => item.mastery !== null).length;
+    const assessed = competencies.filter(hasEvidence).length;
     const button = el('button', `category-button${category.id === selectedCategoryId ? ' active' : ''}`);
     button.type = 'button';
     button.append(el('span', '', category.name), el('span', 'count', `${assessed}/${competencies.length}`));
@@ -146,12 +172,12 @@ function renderCompetencies() {
     group.append(el('h2', '', construction.name));
     for (const variant of variants) {
       const competency = competencyById.get(variant.id);
-      const known = competency.mastery !== null;
-      const button = el('button', `competency-row${competency.taxonomy_node_id === selectedCompetencyId ? ' active' : ''}`);
+      const known = hasEvidence(competency);
+      const button = el('button', `competency-row${competency.taxonomy_node_id === selectedCompetencyId ? ' active' : ''}${known ? '' : ' prior-only'}`);
       button.type = 'button';
       const title = el('span', 'competency-title');
       title.append(el('strong', '', variant.name));
-      title.append(el('span', `score${known ? '' : ' unknown'}`, known ? percent(competency.mastery) : 'brak oceny'));
+      title.append(el('span', `score${known ? '' : ' unknown'}`, known ? percent(competency.mastery) : `prior ${percent(competency.mastery)}`));
       button.append(title);
       if (known) {
         const meter = el('span', 'meter');
@@ -199,28 +225,37 @@ function renderDetail() {
   chips.append(el('span', 'chip id-chip', variant.id));
   ui.detail.append(chips, el('p', '', variant.definition));
 
-  const known = competency.mastery !== null;
+  const known = hasEvidence(competency);
   const scorePanel = el('section', 'score-panel');
-  scorePanel.append(el('div', `score-ring${known ? '' : ' unknown'}`, known ? percent(competency.mastery) : 'brak danych'));
+  scorePanel.append(el('div', `score-ring${known ? '' : ' unknown'}`, percent(competency.mastery)));
   const copy = el('div', 'score-copy');
-  copy.append(el('strong', '', known ? `Andamento ${trendNames[competency.trend]}` : 'Nessuna stima disponibile'));
+  copy.append(el('strong', '', known ? `Trend: ${trendNames[competency.trend]}` : `Prior modelu: ${percent(competency.mastery)} · brak dowodów`));
   copy.append(el('span', '', known
-    ? `Affidabilità della stima: ${percent(competency.confidence)}. Il valore indica una stima di padronanza, non un livello CEFR.`
-    : 'Non ci sono ancora prove sufficienti per stimare la padronanza. Il dato mancante non equivale a un risultato pari a zero.'));
+    ? `Pewność oszacowania: ${percent(competency.confidence)}. Wynik opiera się na dowodach dla tego wariantu i nie jest poziomem CEFR.`
+    : `α=${number(competency.alpha)}, β=${number(competency.beta)}. Wartość prioru nie jest dowodem opanowania; confidence wynosi 0.`));
   scorePanel.append(copy);
   ui.detail.append(scorePanel);
 
   const performance = competency.performance;
   const exposure = competency.exposure;
+  const trend = competency.trend_state;
+  const n = effectiveEvidence(competency);
   const grid = el('div', 'detail-grid');
-  addDetailStat(grid, `${performance.first_attempt_correct}/${performance.first_attempts}`, 'risposte corrette al primo tentativo');
-  addDetailStat(grid, `${exposure.tasks_attempted}/${exposure.tasks_shown}`, 'attività tentate / mostrate');
-  addDetailStat(grid, `${performance.recent_first_attempt_correct}/${performance.recent_first_attempts}`, 'corrette nella finestra recente');
-  addDetailStat(grid, sourceNames[competency.assessment.source] ?? competency.assessment.source, 'origine della stima');
-  ui.detail.append(el('h3', '', 'Ćwiczenia i wyniki'), grid);
+  addDetailStat(grid, `${performance.first_attempt_correct}/${performance.first_attempts}`, 'poprawne pierwsze odpowiedzi');
+  addDetailStat(grid, `${exposure.tasks_attempted}/${exposure.tasks_shown}`, 'próby / pokazane zadania');
+  addDetailStat(grid, `α ${number(competency.alpha)} · β ${number(competency.beta)}`, 'parametry rozkładu Beta');
+  addDetailStat(grid, number(n), 'efektywna liczba dowodów (n)');
+  ui.detail.append(el('h3', '', 'Ćwiczenia i model'), grid);
+
+  const delta = `${trend.smoothed_delta >= 0 ? '+' : ''}${(trend.smoothed_delta * 100).toFixed(2)} pp`;
+  const trendDescription = trend.previous_mastery === null
+    ? `Trend: ${trendNames[competency.trend]} · brak wcześniejszej oceny`
+    : `Trend: ${trendNames[competency.trend]} · wygładzona zmiana ${delta} · poprzednie mastery ${percent(trend.previous_mastery)} · ${trend.assessable_updates} aktualizacji`;
+  ui.detail.append(el('p', 'profile-date', trendDescription));
+  ui.detail.append(el('p', 'profile-date', `Źródło oceny: ${sourceNames[competency.assessment.source] ?? competency.assessment.source} · ${competency.assessment.evidence_count} obserwacji`));
 
   if (exposure.task_types_seen.length) {
-    ui.detail.append(el('h3', '', 'Formati incontrati'));
+    ui.detail.append(el('h3', '', 'Formy zadań'));
     const types = el('div', 'task-chips');
     for (const type of exposure.task_types_seen) types.append(el('span', '', taskNames[type] ?? type));
     ui.detail.append(types);

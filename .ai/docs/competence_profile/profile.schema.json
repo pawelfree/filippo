@@ -1,23 +1,43 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.org/schemas/italian-grammar-profile/1.2.0",
+  "$id": "https://example.org/schemas/italian-grammar-profile/1.3.0",
   "title": "Italian grammar learner profile",
-  "description": "The learner's grammar competency state used to select and generate exercises. A complete profile contains one competency record for every variant in the referenced taxonomy, including variants the learner has never practiced. Categories and constructions group variants; CEFR aspects refine a variant but are not separate taxonomy nodes or independent competencies. Scores from 0 to 1 are estimates, not CEFR levels. Represent missing assessment data as null where allowed, never as 0.",
+  "description": "The learner's grammar competency state used to select and generate exercises. A complete profile contains one competency record for every variant in the referenced taxonomy, including unpracticed variants. Categories and constructions group variants; CEFR aspects refine a variant but are not independent competencies. Per-variant mastery and confidence are derived from the stored Beta-Binomial state. A prior-only variant has mastery 0.5 and confidence 0; 0.5 is a prior mean, not evidence of learning. Scores are not CEFR levels.",
+  "$comment": "JSON Schema checks field types and ranges but cannot enforce arithmetic equality between alpha, beta, mastery, and confidence or compare the competency ID set with the external taxonomy. The application must validate those invariants when saving a profile.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "profile_id", "learner_id", "language", "taxonomy", "estimated_user_level", "created_at", "updated_at", "competencies"],
+  "required": ["schema_version", "profile_id", "learner_id", "language", "taxonomy", "bayesian_model", "estimated_user_level", "created_at", "updated_at", "competencies"],
   "properties": {
-    "schema_version": {"type": "string", "const": "1.2.0", "description": "Version of this profile structure for data migrations. Independent of the taxonomy schema version, taxonomy content fingerprint, and assessment algorithm version."},
+    "schema_version": {"type": "string", "const": "1.3.0", "description": "Version of this profile structure and its Beta-Binomial update policy. Independent of the taxonomy schema version and taxonomy content fingerprint."},
     "profile_id": {"type": "string", "minLength": 1, "description": "Stable, immutable identifier of this profile."},
     "learner_id": {"type": "string", "minLength": 1, "description": "Learner identifier within the application. Do not put a name or email address here."},
     "language": {"type": "string", "const": "it", "description": "ISO 639-1 code of the target language. This schema covers Italian grammar."},
     "taxonomy": {"$ref": "#/$defs/taxonomy"},
+    "bayesian_model": {"$ref": "#/$defs/bayesian_model"},
     "estimated_user_level": {"$ref": "#/$defs/estimated_user_level"},
     "created_at": {"type": "string", "format": "date-time", "description": "Profile creation date and time in RFC 3339 format, including a time zone."},
     "updated_at": {"type": "string", "format": "date-time", "description": "Date and time of the latest profile update in RFC 3339 format, including a time zone."},
-    "competencies": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/competency"}, "description": "One record for every variant in the referenced taxonomy, including unpracticed variants with mastery=null, confidence=0, and zero exposure and performance counts. Each taxonomy_node_id must be unique and valid. JSON Schema cannot verify coverage against an external taxonomy; the application must compare the ID sets."}
+    "competencies": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/competency"}, "description": "One record for every variant in the referenced taxonomy. An unpracticed variant starts at alpha=1, beta=1, mastery=0.5, confidence=0, with zero exposure and performance counts. Each taxonomy_node_id must be unique and valid. The application must compare ID sets with the external taxonomy."}
   },
   "$defs": {
+    "bayesian_model": {
+      "type": "object", "additionalProperties": false,
+      "description": "Update policy shared by all competencies. On a correct assessable answer add diagnostic weight w to alpha; on an incorrect assessable answer add w to beta; on not_assessable make no Bayesian update. Use w=1 for direct unambiguous evidence, 0.5 for reliable indirect evidence, and 0 when the answer cannot assess the variant. Diagnostic weight is independent of CEFR. After an update set mastery=alpha/(alpha+beta), n=alpha+beta-prior_alpha-prior_beta, and confidence=n/(n+confidence_scale). Recompute derived values rather than editing them independently.",
+      "required": ["prior_alpha", "prior_beta", "confidence_scale", "diagnostic_weights", "trend_ema_factor", "trend_threshold", "trend_min_effective_n"],
+      "properties": {
+        "prior_alpha": {"type": "number", "const": 1, "description": "Initial alpha for every taxonomy variant before assessable answers."},
+        "prior_beta": {"type": "number", "const": 1, "description": "Initial beta for every taxonomy variant before assessable answers."},
+        "confidence_scale": {"type": "number", "const": 10, "description": "Positive constant k in confidence=n/(n+k), where n is the accumulated diagnostic weight above the prior."},
+        "diagnostic_weights": {"type": "object", "additionalProperties": false, "required": ["direct", "indirect", "not_assessable"], "description": "Allowed diagnostic weights. Classify an observation before updating: direct=1, indirect=0.5, not_assessable=0. Do not infer weight from CEFR difficulty.", "properties": {
+          "direct": {"type": "number", "const": 1, "description": "Weight for a task that directly and unambiguously assesses this competency."},
+          "indirect": {"type": "number", "const": 0.5, "description": "Weight for reliable but indirect evidence about this competency."},
+          "not_assessable": {"type": "number", "const": 0, "description": "Weight when the answer provides no valid evidence; alpha, beta, mastery, confidence, and trend remain unchanged."}
+        }},
+        "trend_ema_factor": {"type": "number", "const": 0.2, "description": "EMA factor lambda for smoothed_delta_new=lambda*(mastery_new-previous_mastery)+(1-lambda)*smoothed_delta_old after an assessable update."},
+        "trend_threshold": {"type": "number", "const": 0.01, "description": "Classify the smoothed mastery change as improving above this threshold, declining below its negative, otherwise stable."},
+        "trend_min_effective_n": {"type": "number", "const": 10, "description": "Keep trend as insufficient_data until accumulated diagnostic weight n reaches this value. This gate does not affect mastery or confidence."}
+      }
+    },
     "estimated_user_level": {
       "type": "object", "additionalProperties": false,
       "description": "One approximate CEFR level of the learner, used to choose the general complexity of sentences in cloze exercises. It is an estimate, not a certification. Do not lower it merely because the exercise practices basic words, and do not use it as a hard cap on the target grammar variant. Individual vocabulary knowledge must be handled separately by the exercise generator.",
@@ -57,14 +77,18 @@
     "competency": {
       "type": "object", "additionalProperties": false,
       "description": "Learner state for one taxonomy variant. Exercises should target this variant or use its relationships and aspect descriptions in the taxonomy. Do not count CEFR aspects as independent competencies.",
-      "required": ["taxonomy_node_id", "mastery", "confidence", "trend", "exposure", "performance", "difficulties", "assessment"],
+      "required": ["taxonomy_node_id", "alpha", "beta", "mastery", "confidence", "trend", "trend_state", "exposure", "performance", "difficulties", "assessment"],
       "allOf": [
         {
-          "if": {"properties": {"mastery": {"type": "null"}}},
+          "if": {"properties": {"assessment": {"properties": {"source": {"const": "none"}}, "required": ["source"]}}},
           "then": {
             "properties": {
+              "alpha": {"const": 1},
+              "beta": {"const": 1},
+              "mastery": {"const": 0.5},
               "confidence": {"const": 0},
               "trend": {"const": "insufficient_data"},
+              "trend_state": {"properties": {"previous_mastery": {"type": "null"}, "smoothed_delta": {"const": 0}, "assessable_updates": {"const": 0}}},
               "assessment": {
                 "properties": {
                   "assessed_at": {"type": "null"},
@@ -93,13 +117,26 @@
       ],
       "properties": {
         "taxonomy_node_id": {"type": "string", "pattern": "^CAT-[0-9]{2}-CON-[0-9]{2}-VAR-[0-9]{3}$", "description": "Stable variant ID from the taxonomy file pinned by taxonomy.sha256, for example CAT-01-CON-01-VAR-001. This is not a category, construction, or free-text name."},
-        "mastery": {"type": ["number", "null"], "minimum": 0, "maximum": 1, "description": "Estimated command of the topic, from 0 (no command) to 1 (full command). null means no reliable estimate; never use 0 to mean missing data."},
-        "confidence": {"type": "number", "minimum": 0, "maximum": 1, "description": "Confidence in the mastery estimate, from 0 to 1. Few observations, stale evidence, or a narrow range of contexts should lower it. Use 0 when mastery is null."},
-        "trend": {"type": "string", "enum": ["improving", "stable", "declining", "insufficient_data"], "description": "Direction of performance across successive assessments: improving, stable, declining, or insufficient_data when comparison is unsupported. This is distinct from mastery."},
+        "alpha": {"type": "number", "minimum": 1, "description": "Positive Beta-distribution success parameter. Initialize at prior_alpha=1 and add diagnostic weight w after each correct assessable answer. It is cumulative state, not a raw count of correct tasks."},
+        "beta": {"type": "number", "minimum": 1, "description": "Positive Beta-distribution failure parameter. Initialize at prior_beta=1 and add diagnostic weight w after each incorrect assessable answer. It is cumulative state, not a raw count of incorrect tasks."},
+        "mastery": {"type": "number", "minimum": 0, "maximum": 1, "description": "Derived posterior mean alpha/(alpha+beta). A prior-only value of 0.5 is uncertainty, not demonstrated mastery. Use confidence and exposure when selecting exercises."},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1, "description": "Derived evidence-volume score n/(n+10), where n=alpha+beta-2. Equals 0 for a prior-only variant. This is not a Bayesian credible-interval probability and does not account for evidence diversity or recency."},
+        "trend": {"type": "string", "enum": ["improving", "stable", "declining", "insufficient_data"], "description": "Label derived from trend_state.smoothed_delta using bayesian_model.trend_threshold; use insufficient_data until effective n reaches trend_min_effective_n. Leave unchanged on not_assessable answers."},
+        "trend_state": {"$ref": "#/$defs/trend_state"},
         "exposure": {"$ref": "#/$defs/exposure"},
         "performance": {"$ref": "#/$defs/performance"},
         "difficulties": {"type": "array", "items": {"$ref": "#/$defs/difficulty"}, "description": "Specific observed problems within this competency. An empty array means no identified difficulty, not that the learner lacks this competency."},
         "assessment": {"$ref": "#/$defs/assessment"}
+      }
+    },
+    "trend_state": {
+      "type": "object", "additionalProperties": false,
+      "description": "Minimal state needed to update a smoothed mastery trend without loading answer history. Before each assessable update, save the current mastery as previous_mastery; after updating alpha or beta, calculate the new EMA from the current smoothed_delta. On not_assessable answers, leave the entire state unchanged.",
+      "required": ["previous_mastery", "smoothed_delta", "assessable_updates"],
+      "properties": {
+        "previous_mastery": {"type": ["number", "null"], "minimum": 0, "maximum": 1, "description": "Mastery immediately before the most recent assessable update; null if no assessable update has occurred."},
+        "smoothed_delta": {"type": "number", "minimum": -1, "maximum": 1, "description": "Current exponentially smoothed change in mastery. Update with lambda*(new mastery-previous mastery)+(1-lambda)*old smoothed_delta, using bayesian_model.trend_ema_factor as lambda."},
+        "assessable_updates": {"type": "integer", "minimum": 0, "description": "Number of answer events with positive diagnostic weight applied to this competency. Unlike effective n, this is an unweighted count; it is not incremented for not_assessable events."}
       }
     },
     "exposure": {
@@ -116,13 +153,10 @@
     "performance": {
       "type": "object", "additionalProperties": false,
       "description": "Aggregated outcomes of first answers. Counts refer to tasks, not individual clicks or answer revisions.",
-      "required": ["first_attempts", "first_attempt_correct", "recent_window_size", "recent_first_attempts", "recent_first_attempt_correct", "last_attempt_at"],
+      "required": ["first_attempts", "first_attempt_correct", "last_attempt_at"],
       "properties": {
         "first_attempts": {"type": "integer", "minimum": 0, "description": "Number of graded first answers across the full history; must not exceed exposure.tasks_attempted."},
         "first_attempt_correct": {"type": "integer", "minimum": 0, "description": "Number of correct first answers across the full history; must not exceed first_attempts."},
-        "recent_window_size": {"type": "integer", "minimum": 1, "description": "Maximum number of recent graded answers used for recent_* fields. Keep this fixed for a given assessment setup, for example 20."},
-        "recent_first_attempts": {"type": "integer", "minimum": 0, "description": "Number of graded first answers available in the recent window; must not exceed recent_window_size or first_attempts."},
-        "recent_first_attempt_correct": {"type": "integer", "minimum": 0, "description": "Number of correct first answers in the recent window; must not exceed recent_first_attempts."},
         "last_attempt_at": {"type": ["string", "null"], "format": "date-time", "description": "Time of the latest answer attempt in RFC 3339 format; null if there have been no attempts."}
       }
     },
@@ -163,16 +197,16 @@
     },
     "assessment": {
       "type": "object", "additionalProperties": false,
-      "description": "Provenance of the current mastery, confidence, and trend values. Distinguishes a fresh practice-based estimate from an import or manual adjustment.",
+      "description": "Provenance of the current alpha, beta, and derived mastery, confidence, and trend values. Assessment metadata is not required to recompute the Bayesian posterior but supports auditing and debugging.",
       "required": ["assessed_at", "source", "method", "evidence_count", "evidence_window_start", "evidence_window_end", "algorithm_version"],
       "properties": {
-        "assessed_at": {"type": ["string", "null"], "format": "date-time", "description": "Time the current estimate was calculated or approved, in RFC 3339 format; null when mastery is null."},
+        "assessed_at": {"type": ["string", "null"], "format": "date-time", "description": "Time of the most recent assessable update or approval in RFC 3339 format; null when only the prior is present."},
         "source": {"type": "string", "enum": ["none", "diagnostic", "practice", "import", "manual"], "description": "Main source of assessment data: diagnostic test, ongoing practice, import, or manual assessment. none means no assessment."},
         "method": {"type": "string", "enum": ["none", "automatic", "manual", "hybrid"], "description": "How the current estimate was determined: automatically, manually, or by combining both. none means no assessment."},
-        "evidence_count": {"type": "integer", "minimum": 0, "description": "Number of observations used in the latest assessment. This need not equal the length of difficulties.evidence, which contains only selected error examples."},
-        "evidence_window_start": {"type": ["string", "null"], "format": "date-time", "description": "Start of the observation window used for the assessment, or null if the assessment was not based on a window of events."},
-        "evidence_window_end": {"type": ["string", "null"], "format": "date-time", "description": "End of the observation window used for the assessment, or null if the assessment was not based on a window of events."},
-        "algorithm_version": {"type": ["string", "null"], "minLength": 1, "description": "Version of the algorithm calculating mastery, confidence, and trend. null for entirely manual assessments."}
+        "evidence_count": {"type": "integer", "minimum": 0, "description": "Cumulative raw count of assessable answer observations applied to this competency. This is not effective n or the length of difficulties.evidence."},
+        "evidence_window_start": {"type": ["string", "null"], "format": "date-time", "description": "Time of the first assessable observation included in the cumulative posterior, or null before any assessable answer. This is not a sliding window."},
+        "evidence_window_end": {"type": ["string", "null"], "format": "date-time", "description": "Time of the latest assessable observation included in the cumulative posterior, or null before any assessable answer. This is not a sliding window."},
+        "algorithm_version": {"type": ["string", "null"], "minLength": 1, "description": "Version of the Beta-Binomial and trend update implementation. null when only the prior is present or for an entirely manual assessment."}
       }
     },
     "task_type": {

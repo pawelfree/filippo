@@ -29,9 +29,16 @@ export interface ProfileDifficulty {
 
 export interface Competency {
   taxonomy_node_id: string;
-  mastery: number | null;
+  alpha: number;
+  beta: number;
+  mastery: number;
   confidence: number;
   trend: 'improving' | 'stable' | 'declining' | 'insufficient_data';
+  trend_state: {
+    previous_mastery: number | null;
+    smoothed_delta: number;
+    assessable_updates: number;
+  };
   exposure: {
     tasks_shown: number;
     tasks_attempted: number;
@@ -41,9 +48,6 @@ export interface Competency {
   performance: {
     first_attempts: number;
     first_attempt_correct: number;
-    recent_window_size: number;
-    recent_first_attempts: number;
-    recent_first_attempt_correct: number;
     last_attempt_at: string | null;
   };
   difficulties: ProfileDifficulty[];
@@ -60,6 +64,19 @@ export interface CompetenceProfile {
     schema_version: string;
     sha256: string;
     uri: string;
+  };
+  bayesian_model: {
+    prior_alpha: number;
+    prior_beta: number;
+    confidence_scale: number;
+    diagnostic_weights: {
+      direct: number;
+      indirect: number;
+      not_assessable: number;
+    };
+    trend_ema_factor: number;
+    trend_threshold: number;
+    trend_min_effective_n: number;
   };
   estimated_user_level: {
     cefr_level: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2' | null;

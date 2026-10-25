@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model LexicalSense {
+  id          String         @id @default(cuid())
+  language    String         @default("it")
+  lexicalItem String
+  definition  String
+  detailsJson String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  tasks       GeneratedTask[]
+  fsrsStates  FsrsState[]
+
+  @@index([lexicalItem])
+}
+
+model GeneratedTask {
+  id             String       @id @default(cuid())
+  lexicalSenseId String
+  contentJson    String
+  createdAt      DateTime     @default(now())
+  lexicalSense   LexicalSense @relation(fields: [lexicalSenseId], references: [id], onDelete: Restrict)
+  reviews        Review[]
+
+  @@index([lexicalSenseId, createdAt])
+}
+
+model FsrsState {
+  id             String       @id @default(cuid())
+  learnerId      String
+  lexicalSenseId String
+  dueAt          DateTime
+  stability      Float        @default(0)
+  difficulty     Float        @default(0)
+  state          String       @default("new")
+  reps           Int          @default(0)
+  lapses         Int          @default(0)
+  lastReviewAt   DateTime?
+  schedulerData  String?
+  updatedAt      DateTime     @updatedAt
+  lexicalSense   LexicalSense @relation(fields: [lexicalSenseId], references: [id], onDelete: Restrict)
+
+  @@unique([learnerId, lexicalSenseId])
+  @@index([learnerId, dueAt])
+}
+
+model Review {
+  id             String        @id @default(cuid())
+  learnerId      String
+  taskId         String
+  rating         Int
+  reviewedAt     DateTime      @default(now())
+  responseJson   String?
+  fsrsBeforeJson String?
+  fsrsAfterJson  String?
+  task            GeneratedTask @relation(fields: [taskId], references: [id], onDelete: Restrict)
+
+  @@index([learnerId, reviewedAt])
+  @@index([taskId, reviewedAt])
+}

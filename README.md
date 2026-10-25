@@ -22,6 +22,19 @@ Dane źródłowe i schematy JSON znajdują się w `.ai/docs/`. Przy uruchomieniu
 - `GET /api/taxonomy`
 - `GET /api/profile`
 
+## Baza danych
+
+Aplikacja używa SQLite przez Prisma. Skopiuj `.env.example` do `.env`, a następnie wygeneruj klienta i utwórz bazę:
+
+```sh
+cp .env.example .env
+npm install
+npm run db:generate
+npm run db:migrate
+```
+
+Domyślny plik bazy to `prisma/dev.db`. Schemat przechowuje sensy leksykalne, wygenerowane zadania, stan FSRS per użytkownik i sens oraz historię powtórek. Zmiany modelu wprowadzaj przez `npm run db:migrate:dev -- --name opis-zmiany`, a wdrożone migracje stosuj przez `npm run db:migrate`.
+
 ## Polecenia
 
 - `npm test`

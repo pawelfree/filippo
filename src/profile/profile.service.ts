@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { TaxonomyService } from '../taxonomy/taxonomy.service';
 import { loadCompetenceProfile } from './profile.loader';
 import type { CompetenceProfile } from './profile.types';
@@ -7,7 +7,7 @@ import type { CompetenceProfile } from './profile.types';
 export class ProfileService {
   private readonly profile: CompetenceProfile;
 
-  constructor(taxonomyService: TaxonomyService) {
+  constructor(@Inject(TaxonomyService) taxonomyService: TaxonomyService) {
     this.profile = loadCompetenceProfile(taxonomyService.getAll());
   }
 

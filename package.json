@@ -6,24 +6,35 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "start:dev": "tsx watch src/main.ts",
-    "test": "node --import tsx --test tests/*.test.ts"
+    "test": "node --import tsx --test tests/*.test.ts",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/serve-static": "^5.0.0",
+    "@prisma/client": "^6.19.3",
     "ajv": "^8.0.0",
     "ajv-formats": "^3.0.0",
+    "dotenv": "^18.0.9",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "prisma": "^6.19.3",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   },
   "engines": {
     "node": ">=20"
+  },
+  "allowScripts": {
+    "prisma@6.19.3": true,
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true
   }
 }

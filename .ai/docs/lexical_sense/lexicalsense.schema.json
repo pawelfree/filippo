@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LexicalSense",
+  "description": "One documented Italian meaning or use of one LexicalItem for a Polish-speaking learner. The record contains lexical data only, not exercises or learning state.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "lexical_sense_id",
+    "lexical_item_id",
+    "canonical_form_it",
+    "language",
+    "part_of_speech",
+    "definition_it",
+    "definition_pl",
+    "glosses_pl",
+    "usage",
+    "examples",
+    "evidence"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "lexical_sense_id": {
+      "$ref": "#/$defs/id",
+      "description": "Stable identifier of this meaning, retained after editorial corrections."
+    },
+    "lexical_item_id": {
+      "$ref": "#/$defs/id",
+      "description": "Identifier of the one parent LexicalItem."
+    },
+    "canonical_form_it": {
+      "$ref": "#/$defs/text",
+      "description": "Snapshot of the parent item's canonical written form; must match the referenced LexicalItem."
+    },
+    "language": { "const": "it" },
+    "part_of_speech": {
+      "enum": [
+        "noun", "verb", "adjective", "adverb", "pronoun", "determiner",
+        "preposition", "conjunction", "interjection", "expression", "other"
+      ],
+      "description": "Grammatical role of the whole LexicalItem in this use; expression covers idioms or formulas without one useful word class."
+    },
+    "definition_it": {
+      "$ref": "#/$defs/text",
+      "description": "Short Italian paraphrase that distinguishes this meaning from other meanings of the same item."
+    },
+    "definition_pl": {
+      "$ref": "#/$defs/text",
+      "description": "Polish explanation of the same Italian meaning, not a union of unrelated translations."
+    },
+    "glosses_pl": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/text" },
+      "description": "Short Polish equivalents that all belong to this one sense."
+    },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["register", "patterns_it", "collocations_it", "constraints_pl"],
+      "properties": {
+        "register": {
+          "enum": ["neutral", "formal", "informal", "colloquial", "literary", "technical", "regional", "unknown"],
+          "description": "Choose unknown unless a source or supplied context supports a more specific classification."
+        },
+        "patterns_it": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/text" },
+          "description": "Sense-specific argument structures, prepositions, or fixed components. Empty if no such pattern is known."
+        },
+        "collocations_it": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/text" },
+          "description": "Illustrative typical combinations, never an exhaustive allowed-answer list."
+        },
+        "constraints_pl": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/text" },
+          "description": "Semantic, pragmatic, regional, or syntactic limits that distinguish valid use."
+        }
+      }
+    },
+    "examples": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sentence_it", "translation_pl", "origin"],
+        "properties": {
+          "sentence_it": { "$ref": "#/$defs/text" },
+          "translation_pl": { "$ref": "#/$defs/text" },
+          "origin": { "enum": ["authored", "attested"] },
+          "evidence_id": {
+            "$ref": "#/$defs/id",
+            "description": "Required for an attested example and must name an entry in evidence."
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": { "origin": { "const": "attested" } },
+              "required": ["origin"]
+            },
+            "then": { "required": ["evidence_id"] }
+          }
+        ]
+      },
+      "description": "Examples that demonstrate this meaning in a natural Italian context. Authored examples are illustrations, not source evidence."
+    },
+    "evidence": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "$ref": "#/$defs/id" },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_type", "locator", "supports"],
+        "properties": {
+          "source_type": {
+            "enum": ["lexical_database", "dictionary", "corpus", "user_context", "user_gloss", "expert_review"]
+          },
+          "locator": {
+            "$ref": "#/$defs/text",
+            "description": "Entry URL, edition and headword, corpus citation, or stable input-record identifier."
+          },
+          "supports": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "enum": ["meaning", "part_of_speech", "pattern", "register", "constraint", "example"]
+            },
+            "description": "Only claims actually checked against this source."
+          }
+        }
+      },
+      "description": "Traceable support for the sense. Copying a source text is governed by its reuse terms."
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    }
+  }
+}

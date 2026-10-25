@@ -1,0 +1,17 @@
+{
+  "original_input": "vizioso",
+  "items": [
+    {
+      "lexical_item_id": "li-demo-vizioso-adj",
+      "canonical_form_it": "vizioso",
+      "part_of_speech": "adjective"
+    },
+    {
+      "lexical_item_id": "li-demo-vizioso-noun",
+      "canonical_form_it": "vizioso",
+      "part_of_speech": "noun"
+    }
+  ],
+  "existing_lexical_senses": [],
+  "source_policy": "Use the Wikizionario entry as a cited reference; write independent definitions and examples without copying its text."
+}

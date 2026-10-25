@@ -10,34 +10,37 @@ Jedno `LexicalItem` może dać wiele `LexicalSense`. Jedno `LexicalSense` należ
 
 Otrzymujesz `items[]`. Każdy element musi mieć `lexical_item_id` i kanoniczny włoski zapis `canonical_form_it`; może mieć oryginalny zapis z importu, zdanie źródłowe, polski odpowiednik, część mowy, rejestr i intencję użytkownika. Otrzymujesz także istniejące `LexicalItem` i `LexicalSense` do porównania duplikatów oraz listę źródeł, których warunki dopuszczają użycie w tym procesie. Brak pola oznacza brak informacji, nie wartość domyślną.
 
-Jeżeli wejście jest wyłącznie listą napisów bez identyfikatorów, najpierw rozstrzygnij jednostki nadrzędne i przydziel ich identyfikatory w warstwie importu. Nie zapisuj docelowego `LexicalSense` z fikcyjnym `lexical_item_id`. Zachowaj oryginalny zapis i kontekst importu poza rekordem znaczenia, aby dało się wrócić do decyzji.
+Jeżeli wejście jest wyłącznie listą napisów albo zawiera `LexicalItem` bez ustalonej kategorii i lematu, najpierw rozpoznaj wszystkie poświadczone analizy zapisu: samodzielne hasła oraz formy fleksyjne innych lematów. Dla każdej analizy ustal osobną jednostkę nadrzędną i przydziel jej identyfikator w warstwie importu. Jeżeli wejście wskazuje już konkretny `lexical_item_id`, lemat i kategorię, opracuj wskazaną jednostkę. Nie zapisuj docelowego `LexicalSense` z fikcyjnym `lexical_item_id`. Zachowaj oryginalny zapis i kontekst importu poza rekordem znaczenia, aby dało się wrócić do decyzji.
+
+Jeżeli żadna analiza zapisu nie znajduje potwierdzenia w dostępnych, dozwolonych źródłach, nie przydzielaj jednostki ani znaczenia. Zwróć oryginalny zapis jako `deferred` z kodem `not_found_in_sources`. Nie twierdź, że słowo na pewno nie istnieje w języku; wynik oznacza brak potwierdzenia w sprawdzonych źródłach. Gdy źródło jest niedostępne albo niekompletne, użyj `insufficient_evidence` zamiast `not_found_in_sources`. Możesz podać sprawdzoną propozycję poprawnej pisowni, ale nie zastępuj nią wejścia automatycznie.
 
 ## Procedura
 
 ### 1. Ustal jednostkę nadrzędną
 
-1. Rozpoznaj lemat, kategorię, formy fleksyjne, homografy i granice wyrażenia. `vado`, `andavo` i `andrei` są formami `andare`, a `prendere una decisione` może być osobnym `LexicalItem` wobec `prendere`, jak określa [model projektu](../filippo.md#21-lexicalitem--jednostka-leksykalna). Nie twórz osobnego znaczenia dla każdej odmiany.
+1. Rozpoznaj lemat, kategorię, formy fleksyjne, homografy i granice wyrażenia. `vado`, `andavo` i `andrei` są formami `andare`, a `prendere una decisione` może być osobnym `LexicalItem` wobec `prendere`, jak określa [model projektu](../filippo.md#21-lexicalitem--jednostka-leksykalna). Nie twórz osobnego znaczenia dla każdej odmiany. Jeśli goły zapis jest zarówno samodzielnym hasłem, jak i formą innego lematu, opracuj **każde** poświadczone odczytanie; znaczenia formy fleksyjnej zapisz pod jej lematem i zachowaj powiązanie z formą wejściową. Na przykład `attraverso` może dać znaczenia przyimka, przysłówka i czasownika `attraversare`. Nie odrzucaj analizy czasownikowej tylko dlatego, że jej lemat ma inny zapis.
 2. Zachowaj frazę jako jedną jednostkę, gdy użytkownik podał ją jako cel nauki i ma własne utrwalone znaczenie albo łączliwość. Nie uznawaj przypadkowego sąsiedztwa słów w zdaniu za frazę słownikową. Jeśli granicy nie da się ustalić, odrocz wejście.
 3. Porównaj zapis i kategorię z istniejącymi jednostkami. Wariant pisowni może wskazywać istniejące `LexicalItem`; identyczny zapis może też oznaczać różne leksemy. Nie rozstrzygaj tożsamości samym podobieństwem liter.
 
 ### 2. Ustal zakres znaczeń, których dotyczy wejście
 
-1. Jeżeli użytkownik podał polską glosę, zdanie lub opis sytuacji, wyszukaj tylko znaczenia zgodne z tą intencją. Glosa jest wskazówką wyboru; włoskie znaczenie i ograniczenia sprawdź osobno.
-2. Dla gołego hasła bez wskazówki zbierz dobrze udokumentowane współczesne użycia ogólne, które stanowią osobne cele leksykalne. Nie dodawaj znaczeń historycznych, regionalnych lub specjalistycznych bez wskazania w materiale lub poleceniu. Lista nie jest obietnicą pełnego opisu słownika; zapisz, jaki zakres przejrzano i co pominięto.
+1. Jeżeli użytkownik podał polską glosę, zdanie lub opis sytuacji, wyszukaj tylko współczesne znaczenia zgodne z tą intencją. Glosa jest wskazówką wyboru; włoskie znaczenie i ograniczenia sprawdź osobno. Gdy kontekst wskazuje wyłącznie dawne znaczenie, pomiń je i wyjaśnij to w `coverage.notes_pl`.
+2. Dla gołego hasła bez wskazówki zbierz dobrze udokumentowane **współczesne użycia ogólne**, które stanowią osobne cele leksykalne. Nie dodawaj znaczeń historycznych ani przestarzałych; znaczenia regionalne lub specjalistyczne dodawaj tylko wtedy, gdy wskazuje je materiał lub polecenie i nadal są współczesne. Samo występowanie znaczenia w słowniku, zwłaszcza tylko w wykazie synonimów albo tłumaczeń, nie wystarcza do uznania go za współczesne użycie ogólne. Jeżeli jego aktualność lub ogólny zasięg budzi wątpliwość, sprawdź dodatkowe źródło opisujące użycie albo rzeczywisty współczesny kontekst. Bez takiego potwierdzenia nie dodawaj kandydata do `lexical_senses`; gdy może być współczesny, lecz dostępne źródła nie pozwalają tego rozstrzygnąć, wpisz go do `deferred` jako `insufficient_evidence`. Lista nie jest obietnicą pełnego opisu słownika; zapisz, jaki zakres przejrzano i co pominięto.
 3. Jeżeli źródła pokazują kilka możliwych użyć, lecz nie pozwalają wiarygodnie opisać ich granicy lub użytkownik wymaga wyboru jednego bez kontekstu, zwróć kandydatów do rozstrzygnięcia w raporcie `deferred`. Nie przedstawiaj arbitralnego wyboru jako intencji użytkownika.
 
 ### 3. Zbierz dowody dla każdego kandydata
 
 1. Sprawdź znaczenie, część mowy, wymaganą składnię i przyimki, rejestr oraz istotne ograniczenia w dopuszczonym źródle. W `evidence` zapisz dla każdej wykorzystanej pozycji typ źródła, konkretny lokalizator i tylko te właściwości, które naprawdę potwierdza. Własny przykład zdania nie jest dowodem znaczenia.
 2. Domyślne źródło kandydatów to strukturalne dane Wikidata Lexeme na CC0 i kontekst podany przez użytkownika; ich trafność trzeba sprawdzić. Tekst Wikizionario jest na CC BY-SA, a warunki Treccani ograniczają automatyczne pozyskiwanie i użycie treści. Używaj dodatkowych źródeł tylko zgodnie z ich warunkami; szczegóły i źródła pierwotne są w [notatce badawczej](../lexical-sense-research.md). Nie kopiuj definicji ani przykładów, jeśli zasady ich ponownego użycia nie zostały obsłużone.
-3. Gdy źródło nie rozstrzyga granicy znaczenia, łączliwości lub rejestru, szukaj niezależnego potwierdzenia. Jeśli konflikt pozostaje istotny dla opisu, odrocz kandydata. Jedno źródło wystarcza, gdy jasno potwierdza potrzebne właściwości. Nie twórz fikcyjnych cytatów, etykiet rejestru ani twierdzeń o częstotliwości. Jeżeli rejestru nie da się ustalić, użyj `unknown`.
+3. Gdy źródło nie rozstrzyga granicy znaczenia, łączliwości, rejestru albo tego, czy użycie jest współczesne i ogólne, szukaj niezależnego potwierdzenia. Jeśli konflikt pozostaje istotny dla opisu, odrocz kandydata. Jedno źródło wystarcza, gdy jasno potwierdza potrzebne właściwości; nie wymagaj mechanicznie dwóch źródeł ani poświadczonego zdania dla każdego sensu. Znaczenia wywnioskowanego wyłącznie z listy synonimów lub przekładów nie traktuj jak wprost opisanego znaczenia. Nie twórz fikcyjnych cytatów, etykiet rejestru ani twierdzeń o częstotliwości. Jeżeli rejestru nie da się ustalić, użyj `unknown`.
 
 ### 4. Rozdziel lub połącz znaczenia
 
 1. Utwórz osobne sensy, gdy inna interpretacja zmienia objaśnienie, poprawny kontekst, wymagany wzorzec lub ograniczenia użycia w sposób ważny dla przyszłej nauki. Sprawdź, czy jedna precyzyjna definicja i przykład nadal uczciwie opisują oba użycia. Jeśli nie, rozdziel.
 2. Nie rozdzielaj znaczeń z powodu czasu, osoby, liczby, rodzaju, wariantu pisowni ani samego tematu zdania. Numeracja w słowniku jest materiałem do analizy, a nie automatycznym podziałem lokalnych sensów.
-3. Wiele polskich odpowiedników może należeć do jednego `glosses_pl` tylko wtedy, gdy wszystkie odpowiadają temu samemu włoskiemu użyciu. Samo podobne tłumaczenie nie jest dowodem, że dwa włoskie użycia są jednym sensem.
-4. Znaczenie utrwalonej frazy zapisuj pod identyfikatorem tej frazy. Nie przypisuj go automatycznie pojedynczemu słowu, które jest jej składnikiem.
+3. W przypadkach granicznych porównaj własne definicje, wzorce i przykłady dwóch kandydatów: jeśli różnica sprowadza się do tematu przykładu albo wymiennego polskiego przekładu, połącz je; jeśli zmienia warunki poprawnego użycia lub interpretację, rozdziel. Zapisz krótkie uzasadnienie takiej decyzji w `coverage.notes_pl`. To ma zwiększyć szansę spójnego wyniku, a nie narzucać stałą liczbę sensów.
+4. Wiele polskich odpowiedników może należeć do jednego `glosses_pl` tylko wtedy, gdy wszystkie odpowiadają temu samemu włoskiemu użyciu. Samo podobne tłumaczenie nie jest dowodem, że dwa włoskie użycia są jednym sensem.
+5. Znaczenie utrwalonej frazy zapisuj pod identyfikatorem tej frazy. Nie przypisuj go automatycznie pojedynczemu słowu, które jest jej składnikiem.
 
 ### 5. Zbuduj JSON
 
@@ -72,9 +75,11 @@ Zwróć jeden obiekt JSON z polami:
 | Pole | Zawartość |
 | --- | --- |
 | `lexical_senses` | Tablica wszystkich gotowych znaczeń rozpoznanych dla wejścia, nowych i wcześniej istniejących. Każdy sens występuje raz jako pełny rekord zgodny z `lexicalsense.schema.json`. |
-| `deferred` | Tablica obiektów z `lexical_item_id`, opcjonalnym `candidate_label_pl`, `reason_code` i `needed_evidence_or_decision`. `reason_code` to `ambiguous_item`, `insufficient_evidence`, `source_rights`, `dedup_conflict` albo `missing_parent`. |
-| `coverage` | Po jednym obiekcie na wejściowe `LexicalItem`: `lexical_item_id`, `selection_basis` (`provided_context` albo `general_use`) i `notes_pl` wyjaśniające przejrzany zakres oraz świadome pominięcia. |
+| `deferred` | Tablica obiektów z `reason_code` i `needed_evidence_or_decision` oraz `lexical_item_id`, jeśli jednostka została ustalona, albo `input_form_it`, jeśli nie ma jednostki. Opcjonalne są `candidate_label_pl` i źródłowo potwierdzone `suggested_forms_it`. `reason_code` to `ambiguous_item`, `insufficient_evidence`, `not_found_in_sources`, `source_rights`, `dedup_conflict` albo `missing_parent`. |
+| `coverage` | Po jednym obiekcie na rozpoznane `LexicalItem`: `lexical_item_id`, `selection_basis` (`provided_context` albo `general_use`), opcjonalne `matched_input_form_it` gdy forma wejściowa różni się od lematu, i `notes_pl` wyjaśniające przejrzany zakres oraz świadome pominięcia. Dla zapisu bez rozpoznanej jednostki zwróć `input_form_it`, `selection_basis: "unresolved_input"` i `notes_pl` z listą sprawdzonych źródeł. |
 
 Można następnie zapisać `lexical_senses` jako jeden plik `.json` albo osobne pliki rekordów. Nie umieszczaj w tej tablicy odroczonych kandydatów. Jeśli `deferred` jest niepuste, wynik partii jest częściowy; pozostałe poprawne znaczenia zachowaj. Warstwa zapisu zwraca identyfikatory nowych sensów po transakcyjnej kontroli duplikatów, zanim ten końcowy obiekt zostanie oddany jako wynik.
 
 Reguły obowiązują niezależnie od konkretnej listy. Każde uruchomienie ma jednak udokumentować, które wejścia przeanalizowano, jakie źródła sprawdzono oraz które znaczenia zostały odroczone.
+
+Przykład dla niepotwierdzonego zapisu `xzyqpl`: `lexical_senses: []`, `deferred: [{"input_form_it":"xzyqpl","reason_code":"not_found_in_sources","needed_evidence_or_decision":"Sprawdzić pisownię lub podać kontekst."}]`. `coverage` ma wówczas wpis z `input_form_it` i sprawdzonymi źródłami. Ten przykład pokazuje kształt odpowiedzi, a nie twierdzi, że wykonano wyszukiwanie tego zapisu.

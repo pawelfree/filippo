@@ -1,7 +1,6 @@
 generator client {
   provider = "prisma-client-js"
 }
-
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
@@ -65,4 +64,14 @@ model Review {
 
   @@index([learnerId, reviewedAt])
   @@index([taskId, reviewedAt])
+}
+
+model OpenAiGenerationResult {
+  id             String   @id @default(cuid())
+  resultJson     String
+  outcome        String
+  validationJson String?
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt])
 }

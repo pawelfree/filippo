@@ -1,8 +1,8 @@
-import { BadGatewayException, BadRequestException, Injectable, Inject, ServiceUnavailableException } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, ConflictException, HttpException, HttpStatus, Injectable, Inject, NotFoundException, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { Prisma, type LexicalSense } from '@prisma/client';
 import Ajv2020 from 'ajv/dist/2020';
-import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { PrismaService } from '../database/prisma.service';
 
@@ -38,6 +38,38 @@ const normalize = (value: string): string => value.trim().replace(/\s+/g, ' ').t
 const identity = (record: SenseRecord): string => createHash('sha256').update([
   normalize(record.lexical_item_it), normalize(record.part_of_speech), normalize(record.definition_it),
 ].join('\u0000')).digest('hex');
+
+function openAiFailure(status: number, body: unknown): Error {
+  const code = typeof body === 'object' && body !== null && 'error' in body
+    && typeof body.error === 'object' && body.error !== null && 'code' in body.error
+    && typeof body.error.code === 'string' ? body.error.code : undefined;
+  if (status === 401) return new UnauthorizedException('OpenAI odrzuciło klucz API. Sprawdź, czy serwer używa aktywnej wartości OPENAI_API_KEY.');
+  if (status === 429) {
+    const messages: Record<string, string> = {
+      credit_balance_exhausted: 'Wyczerpano środki API. Dodaj kredyty w ustawieniach rozliczeń OpenAI.',
+      organization_spend_limit_exceeded: 'Osiągnięto twardy limit wydatków organizacji OpenAI. Zmień go w ustawieniach organizacji.',
+      project_spend_limit_exceeded: 'Osiągnięto twardy limit wydatków projektu OpenAI. Zmień go w ustawieniach projektu.',
+      organization_usage_limit_exceeded: 'Osiągnięto miesięczny limit użycia organizacji OpenAI.',
+      rate_limit_exceeded: 'OpenAI chwilowo ogranicza liczbę żądań. Poczekaj i spróbuj ponownie.',
+    };
+    return new HttpException(messages[code || ''] || 'OpenAI odrzuciło żądanie z powodu limitu. Sprawdź kredyty oraz limity wydatków projektu.', HttpStatus.TOO_MANY_REQUESTS);
+  }
+  return new BadGatewayException(`OpenAI zwróciło błąd (${status}). Spróbuj ponownie.`);
+}
+
+function evidenceFailures(record: SenseRecord): string[] {
+  const evidence = Object.values(record.evidence);
+  const supports = (claim: string): boolean => evidence.some((entry) => entry.supports.includes(claim));
+  const failures: string[] = [];
+  if (!supports('meaning')) failures.push('Brak dowodu oznaczonego `meaning`.');
+  if (!supports('part_of_speech')) failures.push('Brak dowodu oznaczonego `part_of_speech`.');
+  if (record.usage.register !== 'unknown' && !supports('register')) failures.push('Brak dowodu oznaczonego `register`.');
+  if (record.usage.patterns_it.length > 0 && !supports('pattern')) failures.push('Brak dowodu oznaczonego `pattern`.');
+  if (record.usage.constraints_pl.length > 0 && !supports('constraint')) failures.push('Brak dowodu oznaczonego `constraint`.');
+  if (record.examples.some((example) => example.origin === 'attested' && (!example.evidence_id || !record.evidence[example.evidence_id]?.supports.includes('example')))) failures.push('Przykład poświadczony nie wskazuje dowodu oznaczonego `example`.');
+  if (evidence.some((entry) => ['dictionary', 'corpus', 'lexical_database'].includes(entry.source_type) && !/^https?:\/\//i.test(entry.locator))) failures.push('Źródło słownikowe, korpusowe lub leksykalne nie ma adresu HTTP(S).');
+  return failures;
+}
 
 function parseStored(record: LexicalSense): SenseRecord | null {
   if (!record.detailsJson) return null;
@@ -104,6 +136,27 @@ export class LexicalSensesService {
     return records.filter((record) => wanted.has(normalize(record.lexicalItem)));
   }
 
+  private async storeGenerationResult(result: BatchResult): Promise<string | undefined> {
+    try {
+      const stored = await this.prisma.openAiGenerationResult.create({ data: {
+        resultJson: JSON.stringify(result), outcome: 'received',
+      } });
+      return stored.id;
+    } catch { return undefined; }
+  }
+
+  private async markGenerationResult(id: string | undefined, outcome: string, validation?: unknown): Promise<void> {
+    if (!id) return;
+    try { await this.prisma.openAiGenerationResult.update({ where: { id }, data: { outcome, validationJson: validation === undefined ? null : JSON.stringify(validation) } }); }
+    catch { /* Failure to retain a log does not change the generation verdict. */ }
+  }
+
+  private async rejectGeneratedResponse(message: string, response: unknown, failures: unknown, resultId?: string): Promise<never> {
+    await this.markGenerationResult(resultId, 'rejected_validation', failures);
+    console.error('[OpenAI generation rejected response]', { failures, response });
+    throw new BadGatewayException(message);
+  }
+
   async check(body: { items?: unknown }): Promise<Record<string, unknown>> {
     this.pruneExpired();
     const items = this.cleanItems(body?.items);
@@ -116,6 +169,48 @@ export class LexicalSensesService {
       checkId,
       items: items.map((input) => ({ input, existing: existing.filter((record) => normalize(record.lexicalItem) === normalize(input)).map(publicSense) })),
     };
+  }
+
+  async list(): Promise<Array<Record<string, unknown>>> {
+    try {
+      const records = await this.prisma.lexicalSense.findMany({ where: { language: 'it' }, orderBy: { createdAt: 'desc' } });
+      return records.map((record) => ({ ...publicSense(record), createdAt: record.createdAt, editable: !!parseStored(record) }));
+    } catch { throw new ServiceUnavailableException('Baza danych jest chwilowo niedostępna. Spróbuj ponownie.'); }
+  }
+
+  async update(id: string, body: { definition_it?: unknown; definition_pl?: unknown }): Promise<Record<string, unknown>> {
+    if (typeof body?.definition_it !== 'string' || typeof body?.definition_pl !== 'string') throw new BadRequestException('Podaj włoskie i polskie wyjaśnienie.');
+    const definitionIt = body.definition_it.trim();
+    const definitionPl = body.definition_pl.trim();
+    if (!definitionIt || !definitionPl || definitionIt.length > 2000 || definitionPl.length > 2000) throw new BadRequestException('Wyjaśnienia muszą mieć od 1 do 2000 znaków.');
+    let current: LexicalSense | null;
+    try { current = await this.prisma.lexicalSense.findUnique({ where: { id } }); }
+    catch { throw new ServiceUnavailableException('Baza danych jest chwilowo niedostępna. Spróbuj ponownie.'); }
+    if (!current) throw new NotFoundException('Nie znaleziono LexicalSense.');
+    const details = parseStored(current);
+    if (!details) throw new BadRequestException('Ten LexicalSense nie ma poprawnego pełnego JSON-a i nie może być edytowany na tej stronie.');
+    const updatedDetails = { ...details, definition_it: definitionIt, definition_pl: definitionPl };
+    if (!validateSense(updatedDetails)) throw new BadRequestException('Zmienione wyjaśnienie nie spełnia kontraktu LexicalSense.');
+    try {
+      const updated = await this.prisma.lexicalSense.update({ where: { id }, data: {
+        definition: definitionIt, detailsJson: JSON.stringify(updatedDetails), identityKey: identity(updatedDetails),
+      } });
+      return { ...publicSense(updated), createdAt: updated.createdAt, editable: true };
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new ConflictException('Takie znaczenie jest już zapisane.');
+      throw new ServiceUnavailableException('Nie udało się zapisać zmian. Spróbuj ponownie.');
+    }
+  }
+
+  async remove(id: string): Promise<{ id: string }> {
+    try {
+      await this.prisma.lexicalSense.delete({ where: { id } });
+      return { id };
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') throw new NotFoundException('Nie znaleziono LexicalSense.');
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') throw new ConflictException('Nie można usunąć znaczenia powiązanego z zadaniami lub powtórkami.');
+      throw new ServiceUnavailableException('Nie udało się usunąć znaczenia. Spróbuj ponownie.');
+    }
   }
 
   private verifiedItems(body: { checkId?: unknown; items?: unknown }): string[] {
@@ -147,51 +242,51 @@ export class LexicalSensesService {
         }),
         signal: AbortSignal.timeout(180_000),
       });
-    } catch {
+    } catch (error) {
+      const detail = error instanceof Error ? { name: error.name, message: error.message, cause: error.cause } : error;
+      console.error('[OpenAI generation connection failure]', detail);
       throw new BadGatewayException('Nie udało się połączyć z OpenAI. Spróbuj ponownie.');
     }
-    if (!response.ok) throw new BadGatewayException(`OpenAI zwróciło błąd (${response.status}). Spróbuj ponownie.`);
+    if (!response.ok) {
+      let body: unknown;
+      try { body = await response.json(); } catch { body = undefined; }
+      console.error('[OpenAI generation API failure]', { status: response.status, response: body });
+      throw openAiFailure(response.status, body);
+    }
     let raw: unknown;
     try { raw = await response.json(); } catch { throw new BadGatewayException('OpenAI zwróciło nieczytelną odpowiedź.'); }
+    console.info('[OpenAI generation response]', { status: response.status, response: raw });
     const output = raw as { output_text?: string; output?: Array<{ type?: string; status?: string; content?: Array<{ type?: string; text?: string }> }> };
     if (!output.output?.some((item) => item.type === 'web_search_call' && item.status === 'completed')) {
-      throw new BadGatewayException('OpenAI nie potwierdziło wyszukiwania źródeł. Wynik nie został przyjęty.');
+      await this.rejectGeneratedResponse('OpenAI nie potwierdziło wyszukiwania źródeł. Wynik nie został przyjęty.', raw, ['Brak zakończonego `web_search_call`.']);
     }
     const text = output.output_text || output.output?.flatMap((item) => item.content || []).filter((item) => item.type === 'output_text').map((item) => item.text).join('');
     let batch: unknown;
-    try { batch = JSON.parse(text || ''); } catch { throw new BadGatewayException('OpenAI zwróciło niepoprawny JSON.'); }
-    if (!validateBatch(batch)) throw new BadGatewayException('Odpowiedź OpenAI nie spełnia kontraktu partii.');
-    for (const record of batch.lexical_senses) {
-      if (!validateSense(record) || !record.examples.every((example) => example.origin !== 'attested' || (example.evidence_id && record.evidence[example.evidence_id]))) {
-        throw new BadGatewayException('Wygenerowany LexicalSense nie spełnia reguł skilla.');
-      }
-      const evidence = Object.values(record.evidence);
-      const supports = (claim: string) => evidence.some((entry) => entry.supports.includes(claim));
-      if (!supports('meaning') || !supports('part_of_speech') ||
-          (record.usage.register !== 'unknown' && !supports('register')) ||
-          (record.usage.patterns_it.length > 0 && !supports('pattern')) ||
-          (record.usage.constraints_pl.length > 0 && !supports('constraint')) ||
-          record.examples.some((example) => example.origin === 'attested' && (!example.evidence_id || !record.evidence[example.evidence_id]?.supports.includes('example'))) ||
-          evidence.some((entry) => ['dictionary', 'corpus', 'lexical_database'].includes(entry.source_type) && !/^https?:\/\//i.test(entry.locator))) {
-        throw new BadGatewayException('Wygenerowany LexicalSense nie ma wystarczających dowodów dla swoich twierdzeń.');
-      }
-    }
-    const coveredInputs = new Set(batch.coverage.map((item) => normalize(String(item.matched_input_form_it || item.input_form_it || item.lexical_item_it || ''))));
+    try { batch = JSON.parse(text || ''); } catch { await this.rejectGeneratedResponse('OpenAI zwróciło niepoprawny JSON.', raw, ['Pole `output_text` nie jest poprawnym JSON-em.']); }
+    if (!validateBatch(batch)) await this.rejectGeneratedResponse('Odpowiedź OpenAI nie spełnia kontraktu partii.', raw, validateBatch.errors || []);
+    const validBatch = batch as BatchResult;
+    const resultId = await this.storeGenerationResult(validBatch);
+    const validationWarnings = validBatch.lexical_senses.flatMap((record, index) => {
+      const warnings = evidenceFailures(record);
+      return warnings.length ? [{ recordIndex: index, lexicalItem: record.lexical_item_it, warnings }] : [];
+    });
+    const coveredInputs = new Set(validBatch.coverage.map((item) => normalize(String(item.matched_input_form_it || item.input_form_it || item.lexical_item_it || ''))));
     if (items.some((item) => !coveredInputs.has(normalize(item)))) {
-      throw new BadGatewayException('Odpowiedź OpenAI nie opisuje zakresu analizy wszystkich wejść.');
+      await this.rejectGeneratedResponse('Odpowiedź OpenAI nie opisuje zakresu analizy wszystkich wejść.', raw, ['Brakuje wpisu `coverage` dla co najmniej jednej pozycji wejściowej.'], resultId);
     }
-    if (new Set(batch.lexical_senses.map(identity)).size !== batch.lexical_senses.length) {
-      throw new BadGatewayException('OpenAI zwróciło powtórzone znaczenia.');
+    if (new Set(validBatch.lexical_senses.map(identity)).size !== validBatch.lexical_senses.length) {
+      await this.rejectGeneratedResponse('OpenAI zwróciło powtórzone znaczenia.', raw, ['W odpowiedzi występuje zduplikowana tożsamość znaczenia.'], resultId);
     }
     let related: LexicalSense[];
-    try { related = await this.existingFor(batch.lexical_senses.map((record) => record.lexical_item_it).filter((item, index, all) => all.indexOf(item) === index)); }
+    try { related = await this.existingFor(validBatch.lexical_senses.map((record) => record.lexical_item_it).filter((item, index, all) => all.indexOf(item) === index)); }
     catch { throw new ServiceUnavailableException('Baza danych jest chwilowo niedostępna. Spróbuj ponownie.'); }
-    const matches = batch.lexical_senses.map((record) => related.filter((stored) => sameItem(stored, record)).map((stored) => ({
+    const matches = validBatch.lexical_senses.map((record) => related.filter((stored) => sameItem(stored, record)).map((stored) => ({
       ...publicSense(stored), equivalent: equivalent(stored, record), possible: possiblyEquivalent(stored, record),
     })));
     const draftId = randomUUID();
-    this.drafts.set(draftId, { records: batch.lexical_senses, expires: Date.now() + 60 * 60_000 });
-    return { draftId, ...batch, matches };
+    this.drafts.set(draftId, { records: validBatch.lexical_senses, expires: Date.now() + 60 * 60_000 });
+    await this.markGenerationResult(resultId, validationWarnings.length ? 'accepted_with_warnings' : 'accepted', validationWarnings.length ? validationWarnings : undefined);
+    return { draftId, ...validBatch, matches, validationWarnings };
   }
 
   async save(body: { draftId?: unknown; selected?: unknown }): Promise<{ results: Array<Record<string, unknown>> }> {

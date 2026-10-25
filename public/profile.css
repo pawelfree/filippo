@@ -1,7 +1,3 @@
-.page-nav{display:flex;align-items:center;gap:6px}
-.page-nav a{padding:9px 12px;border-radius:8px;color:#728277;text-decoration:none;font-size:12px;font-weight:650}
-.page-nav a:hover,.page-nav a:focus-visible{background:#f2f6f0;color:#326c4a}
-.page-nav a.current{background:#eaf3e9;color:#2e704a}
 .profile-intro{align-items:center}
 .profile-updated{color:#849187;font-size:12px;white-space:nowrap}
 .profile-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 22px}
@@ -52,4 +48,4 @@
 .model-note summary{width:max-content;padding:8px 0;color:#578065;font-size:11px;font-weight:700;cursor:pointer}
 .model-note p{margin:5px 0 12px;color:#79867c;font-size:11px;line-height:1.6}
 @media(max-width:800px){.profile-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.profile-updated{margin-top:18px}.profile-intro{display:block}}
-@media(max-width:640px){.page-nav{gap:0}.page-nav a{padding:8px 7px;font-size:11px}.profile-summary{gap:7px}.summary-card{padding:12px}.summary-card strong{font-size:20px}.level-card{grid-template-columns:58px minmax(0,1fr);gap:13px;padding:15px}.level-value{width:56px;height:56px;border-radius:11px;font-size:19px}.level-information h2{font-size:17px}}
+@media(max-width:640px){.profile-summary{gap:7px}.summary-card{padding:12px}.summary-card strong{font-size:20px}.level-card{grid-template-columns:58px minmax(0,1fr);gap:13px;padding:15px}.level-value{width:56px;height:56px;border-radius:11px;font-size:19px}.level-information h2{font-size:17px}}

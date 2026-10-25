@@ -6,6 +6,7 @@
 .section-heading h2 { margin: 5px 0; }
 .input-row { display: flex; gap: 10px; margin: 10px 0; }
 .input-row input { flex: 1; min-width: 0; }
+.lexical-panel button.remove-item { width: 42px; padding: 10px; line-height: 1; font-size: 1.05rem; }
 .lexical-panel input[type="text"], .lexical-panel textarea { border: 1px solid #cfc9bd; border-radius: 8px; padding: 11px 12px; font: inherit; background: #fff; }
 .lexical-panel textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 6px; resize: vertical; }
 .lexical-panel button { border: 0; background: #233f55; color: white; border-radius: 8px; padding: 10px 16px; font: inherit; cursor: pointer; }
@@ -15,6 +16,8 @@
 .hint { color: #675f55; font-size: .9rem; }
 .status { margin: 14px 0; min-height: 1.4em; color: #365769; }
 .existing-card, .sense-card { border: 1px solid #e5e1d8; border-radius: 10px; padding: 16px; margin: 12px 0; }
+.stored-list { display: grid; gap: 12px; }
+.stored-card { margin: 0; }
 .existing-card h3, .sense-card h3 { margin: 0 0 8px; }
 .badge { display: inline-block; padding: 5px 9px; border-radius: 999px; }
 .existing-badge { background: #fff1cf; color: #624915; }

@@ -43,11 +43,17 @@ test('user reviews existing senses, corrects a generated sense, and saves only t
   } });
 
   const requests: unknown[] = [];
+  let openaiFailure: { status: number; code: string } | undefined;
   const openai = createServer(async (request, response) => {
     const chunks: Buffer[] = [];
     for await (const chunk of request) chunks.push(Buffer.from(chunk));
     requests.push(JSON.parse(Buffer.concat(chunks).toString('utf8')));
     response.setHeader('content-type', 'application/json');
+    if (openaiFailure) {
+      response.statusCode = openaiFailure.status;
+      response.end(JSON.stringify({ error: { code: openaiFailure.code } }));
+      return;
+    }
     response.end(JSON.stringify({ output: [{ type: 'web_search_call', status: 'completed' }], output_text: JSON.stringify({
       lexical_senses: [sense('casa', 'insieme di persone della stessa famiglia', 'rodzina'), sense('ponte', 'struttura per attraversare', 'most')],
       deferred: [{ input_form_it: 'xzy', reason_code: 'not_found_in_sources', needed_evidence_or_decision: 'Sprawdzić pisownię.' }],
@@ -106,7 +112,6 @@ test('user reviews existing senses, corrects a generated sense, and saves only t
     polish.value = 'członkowie rodziny';
     polish.dispatchEvent(new window.Event('input', { bubbles: true }));
     cards[0].querySelector<HTMLInputElement>('[data-select-sense]')!.click();
-    cards[0].querySelector<HTMLInputElement>('[data-confirm-distinct]')!.click();
     doc.querySelector<HTMLButtonElement>('#save-senses')!.click();
     await waitFor(() => doc.body.textContent!.includes('Zapisano 1'));
     const check = await fetch(`${base}/api/lexical-senses/check`, {
@@ -126,6 +131,18 @@ test('user reviews existing senses, corrects a generated sense, and saves only t
     });
     const second = await recheck.json() as { items: Array<{ existing: unknown[] }> };
     assert.equal(second.items[0].existing.length, 2);
+
+    const failedCheck = await fetch(`${base}/api/lexical-senses/check`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items: ['ponte'] }),
+    });
+    const { checkId } = await failedCheck.json() as { checkId: string };
+    openaiFailure = { status: 429, code: 'credit_balance_exhausted' };
+    const failedGeneration = await fetch(`${base}/api/lexical-senses/generate`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ checkId, items: ['ponte'] }),
+    });
+    assert.equal(failedGeneration.status, 429);
+    const failure = await failedGeneration.json() as { message: string };
+    assert.match(failure.message, /Wyczerpano środki API/);
   } finally {
     dom?.window.close();
     await app.close();

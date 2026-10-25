@@ -12,6 +12,7 @@ let checkId = null;
 let checkedItems = [];
 let draft = null;
 let busy = false;
+let generationStarted = false;
 let revision = 0;
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', label?: string): HTMLElementTagNameMap[K] {
@@ -24,14 +25,12 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', 
 function setStatus(message) { ui.status.textContent = message; }
 function setError(message) { ui.error.textContent = message; ui.error.hidden = !message; }
 function updateButtons() {
-  ui.check.disabled = busy;
-  ui.add.disabled = busy;
-  ui.generate.disabled = busy || !checkId;
+  ui.check.disabled = busy || generationStarted;
+  ui.add.disabled = busy || generationStarted;
+  ui.generate.disabled = busy || !checkId || generationStarted;
+  ui.items.querySelectorAll<HTMLButtonElement>('.remove-item').forEach((button) => { button.disabled = busy || generationStarted; });
   const selectedCards = [...ui.proposals.querySelectorAll('[data-sense-card]')].filter((card) => card.querySelector<HTMLInputElement>('[data-select-sense]').checked);
-  ui.save.disabled = busy || !draft || !selectedCards.length || selectedCards.some((card) => {
-    const confirm = card.querySelector<HTMLInputElement>('[data-confirm-distinct]');
-    return confirm && !confirm.checked;
-  });
+  ui.save.disabled = busy || !draft || !selectedCards.length;
 }
 function invalidate() {
   revision += 1;
@@ -53,8 +52,15 @@ function addItem(value = '') {
   input.setAttribute('aria-label', 'Włoskie słowo lub wyrażenie');
   input.setAttribute('data-item-input', '');
   input.addEventListener('input', invalidate);
-  const remove = element('button', 'secondary remove-item', 'Usuń');
+  input.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' || !input.value.trim()) return;
+    event.preventDefault();
+    addItem().focus();
+  });
+  const remove = element('button', 'secondary remove-item', '🗑');
   remove.type = 'button';
+  remove.setAttribute('aria-label', 'Usuń pozycję');
+  remove.title = 'Usuń pozycję';
   remove.addEventListener('click', () => { row.remove(); invalidate(); if (!ui.items.children.length) addItem(); });
   row.append(input, remove);
   ui.items.append(row);
@@ -77,14 +83,18 @@ function busyState(value, message) { busy = value; setStatus(message); updateBut
 
 function renderExisting(result) {
   ui.existing.replaceChildren();
-  for (const item of result.items) {
+  const existingItems = result.items.filter((item) => item.existing.length);
+  const heading = ui.existingSection.querySelector<HTMLElement>('.section-heading');
+  const title = ui.existingSection.querySelector<HTMLElement>('#existing-heading');
+  if (heading) heading.hidden = false;
+  if (title) title.textContent = existingItems.length ? 'Istniejące znaczenia' : 'Brak istniejących znaczeń w bazie';
+  ui.existing.hidden = existingItems.length === 0;
+  for (const item of existingItems) {
     const card = element('article', 'existing-card');
     card.append(element('h3', '', item.input));
-    if (item.existing.length) {
-      card.append(element('p', 'badge existing-badge', `Już w bazie: ${item.existing.length}`));
-      for (const sense of item.existing) card.append(element('p', '', `${sense.part_of_speech || '—'} · ${sense.definition_it}${sense.definition_pl ? ` · ${sense.definition_pl}` : ''}`));
-      card.append(element('p', 'hint', 'Możesz usunąć tę pozycję z listy lub zachować ją, aby znaleźć inne znaczenie.'));
-    } else card.append(element('p', 'hint', 'Brak wpisów dla tej postaci hasłowej.'));
+    card.append(element('p', 'badge existing-badge', `Już w bazie: ${item.existing.length}`));
+    for (const sense of item.existing) card.append(element('p', '', `${sense.part_of_speech || '—'} · ${sense.definition_it}${sense.definition_pl ? ` · ${sense.definition_pl}` : ''}`));
+    card.append(element('p', 'hint', 'Możesz usunąć tę pozycję z listy lub zachować ją, aby znaleźć inne znaczenie.'));
     ui.existing.append(card);
   }
   ui.existingSection.hidden = false;
@@ -107,6 +117,8 @@ function renderProposals(result) {
     evidence.append(element('summary', '', 'Sprawdzone źródła'));
     for (const source of Object.values(sense.evidence) as Array<{ source_type: string; locator: string }>) evidence.append(element('p', 'hint', `${source.source_type}: ${source.locator}`));
     card.append(evidence);
+    const warning = result.validationWarnings?.find((item) => item.recordIndex === index);
+    if (warning) card.append(element('p', 'deferred', `Wymaga Twojej oceny: ${warning.warnings.join(' ')}`));
     const matches = result.matches[index] || [];
     if (matches.length) {
       card.append(element('p', 'badge existing-badge', 'Istniejące znaczenia tej jednostki:'));
@@ -125,17 +137,10 @@ function renderProposals(result) {
     checkbox.setAttribute('data-select-sense', '');
     checkbox.disabled = matches.some((match) => match.equivalent);
     checkbox.addEventListener('change', updateButtons);
-    choose.append(checkbox, element('span', '', checkbox.disabled ? 'Już zapisane — konflikt' : 'Wybierz do zapisu'));
+    const possibleExisting = matches.some((match) => match.possible);
+    if (possibleExisting) card.dataset.possibleExisting = 'true';
+    choose.append(checkbox, element('span', '', checkbox.disabled ? 'Już zapisane — konflikt' : possibleExisting ? 'Zapisz jako odrębne znaczenie' : 'Wybierz do zapisu'));
     card.append(label, choose);
-    if (!checkbox.disabled && matches.some((match) => match.possible)) {
-      const review = element('label', 'choose-label');
-      const confirmation = element('input');
-      confirmation.type = 'checkbox';
-      confirmation.setAttribute('data-confirm-distinct', '');
-      confirmation.addEventListener('change', updateButtons);
-      review.append(confirmation, element('span', '', 'Potwierdzam: to odrębne znaczenie od pokazanych wpisów.'));
-      card.append(review);
-    }
     const saveState = element('p', 'save-state');
     saveState.setAttribute('data-save-state', '');
     card.append(saveState);
@@ -183,6 +188,8 @@ ui.generate.addEventListener('click', async () => {
   try {
     const startedAt = revision;
     setError('');
+    generationStarted = true;
+    ui.items.replaceChildren();
     busyState(true, 'Generowanie i sprawdzanie źródeł może potrwać kilka minut…');
     const result = await post('/api/lexical-senses/generate', { checkId, items: checkedItems });
     if (revision !== startedAt) { setStatus('Lista zmieniła się podczas generowania. Sprawdź ją ponownie.'); return; }
@@ -194,9 +201,9 @@ ui.generate.addEventListener('click', async () => {
 });
 ui.save.addEventListener('click', async () => {
   if (busy || !draft) return;
-  const selected = [...ui.proposals.querySelectorAll('[data-sense-card]')].flatMap((card, index) => {
+  const selected = [...ui.proposals.querySelectorAll<HTMLElement>('[data-sense-card]')].flatMap((card, index) => {
     if (!card.querySelector<HTMLInputElement>('[data-select-sense]').checked) return [];
-    return [{ index, definition_pl: card.querySelector<HTMLTextAreaElement>('[data-definition-pl]').value.trim(), confirmedDistinct: !!card.querySelector<HTMLInputElement>('[data-confirm-distinct]')?.checked }];
+    return [{ index, definition_pl: card.querySelector<HTMLTextAreaElement>('[data-definition-pl]').value.trim(), confirmedDistinct: card.dataset.possibleExisting === 'true' }];
   });
   if (selected.some((item) => !item.definition_pl)) { setError('Uzupełnij polskie objaśnienia wybranych znaczeń.'); return; }
   try {
@@ -207,18 +214,14 @@ ui.save.addEventListener('click', async () => {
     const conflicts = result.results.filter((item) => item.status === 'conflict').length;
     const reviews = result.results.filter((item) => item.status === 'review_required').length;
     for (const item of result.results) {
-      const card = ui.proposals.querySelectorAll('[data-sense-card]')[item.index];
+      const card = ui.proposals.querySelectorAll<HTMLElement>('[data-sense-card]')[item.index];
       const state = card.querySelector('[data-save-state]');
       state.textContent = item.status === 'saved' ? 'Zapisano' : item.status === 'conflict' ? 'Konflikt: znaczenie jest już w bazie.' : 'Wymaga potwierdzenia odrębności znaczenia.';
-      if (item.status === 'review_required' && !card.querySelector('[data-confirm-distinct]')) {
+      if (item.status === 'review_required') {
         for (const existing of item.existing) card.append(element('p', 'hint', `Nowy wpis w bazie: ${existing.definition_it}${existing.definition_pl ? ` · ${existing.definition_pl}` : ''}`));
-        const review = element('label', 'choose-label');
-        const confirmation = element('input');
-        confirmation.type = 'checkbox';
-        confirmation.setAttribute('data-confirm-distinct', '');
-        confirmation.addEventListener('change', updateButtons);
-        review.append(confirmation, element('span', '', 'Potwierdzam: to odrębne znaczenie od nowych wpisów.'));
-        card.append(review);
+        card.dataset.possibleExisting = 'true';
+        const label = card.querySelector<HTMLElement>('.choose-label span');
+        if (label) label.textContent = 'Zapisz jako odrębne znaczenie';
       }
     }
     ui.saveResult.textContent = `Zapisano ${saved}. Konflikty: ${conflicts}. Do potwierdzenia: ${reviews}.`;

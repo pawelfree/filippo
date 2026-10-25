@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Filippo · Zapisane LexicalSense</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/lexical-senses.css" />
+    <script src="/assets/stored-lexical-senses.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">F</span><span>filippo <small>/ słownictwo</small></span></div>
+      <nav class="page-nav" aria-label="Nawigacja główna">
+        <a href="/">Taksonomia</a>
+        <a href="/profile.html">Profil kompetencyjny</a>
+        <a href="/lexical-senses.html">Dodaj znaczenia</a>
+        <a class="current" href="/stored-lexical-senses.html">Zapisane znaczenia</a>
+      </nav>
+    </header>
+    <main class="shell lexical-shell">
+      <section class="intro">
+        <div>
+          <p class="eyebrow">Włoskie słownictwo</p>
+          <h1>Zapisane <em>znaczenia</em></h1>
+          <p>Popraw włoskie lub polskie wyjaśnienie, albo usuń wpis, którego już nie potrzebujesz.</p>
+        </div>
+      </section>
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+      <div id="error" class="error" role="alert" hidden></div>
+      <section class="lexical-panel" aria-labelledby="stored-heading">
+        <div class="section-heading"><span>Baza danych</span><h2 id="stored-heading">LexicalSense</h2></div>
+        <div id="stored-list" class="stored-list"></div>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,7 +1,7 @@
 # Strona tworzenia i zapisu LexicalSense
 
-Status: implemented  
-Created: 2026-10-25  
+Status: implemented
+Created: 2026-10-25
 Implemented: 2026-10-25; wszystkie kryteria akceptacji spełnione. Przeniesiono do `implemented/` po weryfikacji implementacji.
 
 ## Problem Statement

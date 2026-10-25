@@ -1,6 +1,6 @@
 # Specyfikacja strony importu LexicalSense
 
-Data: 2026-10-25  
+Data: 2026-10-25
 Status: zakończony
 
 ## Cel

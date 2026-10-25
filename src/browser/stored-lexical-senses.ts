@@ -2,6 +2,8 @@
 const list = document.getElementById('stored-list');
 const status = document.getElementById('status');
 const error = document.getElementById('error');
+const search = document.getElementById('stored-search') as HTMLInputElement;
+let allItems = [];
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', label?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -20,13 +22,19 @@ async function request(path, options = {}) {
 function card(item) {
   const article = element('article', 'sense-card stored-card');
   article.dataset.id = item.id;
-  article.append(element('h3', '', `${item.lexical_item_it} · ${item.part_of_speech || '—'}`));
+  const header = element('div', 'stored-card-header');
+  header.append(element('h3', '', `${item.lexical_item_it} · ${item.part_of_speech || '—'}`));
+  const iconActions = element('div', 'stored-icon-actions');
+  header.append(iconActions);
+  article.append(header);
+  const remove = element('button', 'secondary stored-icon-button', '🗑');
+  remove.type = 'button';
+  remove.setAttribute('aria-label', 'Usuń wpis');
+  remove.title = 'Usuń wpis';
+  remove.addEventListener('click', () => removeItem(article, item.id));
+  iconActions.append(remove);
   if (!item.editable) {
     article.append(element('p', 'deferred', 'Ten starszy wpis nie ma pełnych danych i nie może być edytowany na tej stronie.'));
-    const remove = element('button', 'secondary', 'Usuń wpis');
-    remove.type = 'button';
-    remove.addEventListener('click', () => removeItem(article, item.id));
-    article.append(remove);
     return article;
   }
   const italian = element('label', 'edit-label', 'Włoskie wyjaśnienie');
@@ -41,9 +49,15 @@ function card(item) {
   polishInput.value = item.definition_pl;
   polishInput.setAttribute('data-definition-pl', '');
   polish.append(polishInput);
-  const actions = element('div', 'actions');
-  const save = element('button', '', 'Zapisz zmiany');
+  const save = element('button', 'stored-icon-button', '💾');
   save.type = 'button';
+  save.disabled = true;
+  save.setAttribute('aria-label', 'Zapisz zmiany');
+  save.title = 'Zapisz zmiany';
+  iconActions.prepend(save);
+  const updateSaveState = () => { save.disabled = italianInput.value === item.definition_it && polishInput.value === item.definition_pl; };
+  italianInput.addEventListener('input', updateSaveState);
+  polishInput.addEventListener('input', updateSaveState);
   save.addEventListener('click', async () => {
     try {
       save.disabled = true;
@@ -51,15 +65,14 @@ function card(item) {
       const updated = await request(`/api/lexical-senses/${item.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ definition_it: italianInput.value, definition_pl: polishInput.value }) });
       italianInput.value = updated.definition_it;
       polishInput.value = updated.definition_pl;
+      allItems = allItems.map((stored) => stored.id === updated.id ? { ...updated, editable: true } : stored);
+      item.definition_it = updated.definition_it;
+      item.definition_pl = updated.definition_pl;
       setStatus(`Zapisano zmiany dla „${updated.lexical_item_it}”.`);
     } catch (cause) { setError(cause.message); }
-    finally { save.disabled = false; }
+    finally { updateSaveState(); }
   });
-  const remove = element('button', 'secondary', 'Usuń wpis');
-  remove.type = 'button';
-  remove.addEventListener('click', () => removeItem(article, item.id));
-  actions.append(save, remove);
-  article.append(italian, polish, actions);
+  article.append(italian, polish);
   return article;
 }
 async function removeItem(article, id) {
@@ -67,20 +80,26 @@ async function removeItem(article, id) {
   try {
     setError('');
     await request(`/api/lexical-senses/${id}`, { method: 'DELETE' });
-    article.remove();
+    allItems = allItems.filter((item) => item.id !== id);
+    render();
     setStatus('Usunięto znaczenie.');
-    if (!list.children.length) list.append(element('p', 'hint', 'Brak zapisanych znaczeń.'));
   } catch (cause) { setError(cause.message); }
 }
 async function load() {
   try {
     setStatus('Wczytywanie zapisanych znaczeń…');
-    const items = await request('/api/lexical-senses');
-    list.replaceChildren();
-    if (!items.length) list.append(element('p', 'hint', 'Brak zapisanych znaczeń.'));
-    else items.forEach((item) => list.append(card(item)));
-    setStatus(`Zapisane znaczenia: ${items.length}.`);
+    allItems = await request('/api/lexical-senses');
+    render();
+    setStatus(`Zapisane znaczenia: ${allItems.length}.`);
   } catch (cause) { setError(cause.message); setStatus('Nie udało się wczytać znaczeń.'); }
 }
+function render() {
+  const query = search.value.trim().toLocaleLowerCase('it');
+  const visible = query ? allItems.filter((item) => [item.lexical_item_it, item.definition_it, item.definition_pl].some((value) => String(value || '').toLocaleLowerCase('it').includes(query))) : allItems;
+  list.replaceChildren();
+  if (!visible.length) list.append(element('p', 'hint', query ? 'Brak znaczeń pasujących do filtra.' : 'Brak zapisanych znaczeń.'));
+  else visible.forEach((item) => list.append(card(item)));
+}
+search.addEventListener('input', render);
 load();
 })();

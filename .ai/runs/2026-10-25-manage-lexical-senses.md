@@ -10,6 +10,7 @@ Related spec: [Zarządzanie zapisanymi LexicalSense](../specs/2026-10-25-manage-
 - Dodano API listowania, edycji wyjaśnień i usuwania rekordów.
 - Dodano stronę `stored-lexical-senses.html` oraz linki w nawigacji wszystkich widoków.
 - Edycja synchronizuje włoskie wyjaśnienie w kolumnie `definition`, oba wyjaśnienia w `detailsJson` i `identityKey`.
+- Dodano natychmiastowy filtr po haśle oraz włoskim i polskim wyjaśnieniu.
 
 ## Checks
 

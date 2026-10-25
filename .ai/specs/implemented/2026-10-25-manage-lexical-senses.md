@@ -24,6 +24,7 @@ Nowa strona pokazuje wszystkie zapisane włoskie LexicalSense. Każdy rekord umo
 - [x] Można zapisać edycję włoskiego i polskiego wyjaśnienia.
 - [x] Można usunąć rekord bez powiązanych danych; blokada relacji jest wyjaśniona.
 - [x] Edycja aktualizuje `definition`, `detailsJson` i `identityKey` spójnie.
+- [x] Strona filtruje zapisane znaczenia po haśle oraz włoskim i polskim wyjaśnieniu.
 
 ## Open questions
 

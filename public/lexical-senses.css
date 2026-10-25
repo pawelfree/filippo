@@ -18,6 +18,11 @@
 .existing-card, .sense-card { border: 1px solid #e5e1d8; border-radius: 10px; padding: 16px; margin: 12px 0; }
 .stored-list { display: grid; gap: 12px; }
 .stored-card { margin: 0; }
+.stored-search { width: 100%; margin: 0 0 16px; border: 1px solid #cfc9bd; border-radius: 8px; padding: 11px 12px; font: inherit; background: #fff; }
+.stored-card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.stored-card-header h3 { margin: 0; }
+.stored-icon-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.lexical-panel button.stored-icon-button { width: 38px; min-height: 38px; padding: 8px; line-height: 1; font-size: 1rem; }
 .existing-card h3, .sense-card h3 { margin: 0 0 8px; }
 .badge { display: inline-block; padding: 5px 9px; border-radius: 999px; }
 .existing-badge { background: #fff1cf; color: #624915; }

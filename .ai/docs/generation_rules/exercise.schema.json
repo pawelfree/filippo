@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Open cloze exercise",
+  "description": "One lexical exercise for one LexicalSense. A response may fill multiple word-level gaps and provide multiple grammar observations; the FSRS unit remains the exercise's LexicalSense.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "exercise_id",
+    "task_type",
+    "lexical_sense_id",
+    "prompt",
+    "gaps",
+    "answer_keys",
+    "success_checks_by_answer_key",
+    "primary_grammar_target"
+  ],
+  "properties": {
+    "exercise_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable identity of this exercise content; separate from a presentation identity."
+    },
+    "task_type": {
+      "const": "fill_blank",
+      "description": "The only supported exercise format."
+    },
+    "lexical_sense_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The single LexicalSense practiced by the whole exercise and the associated FSRS unit. Do not create an FSRS result per gap."
+    },
+    "prompt": {
+      "type": "array",
+      "minItems": 2,
+      "contains": {
+        "type": "object",
+        "required": ["gap_id"],
+        "properties": {
+          "gap_id": {
+            "$ref": "#/$defs/gap_id"
+          }
+        }
+      },
+      "minContains": 1,
+      "items": {
+        "$ref": "#/$defs/prompt_part"
+      },
+      "description": "Ordered text and gap parts forming the complete sentence or short dialogue. Gap parts may be adjacent or separated by text. Every declared gap_id must occur exactly once."
+    },
+    "gaps": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/gap_id"
+      },
+      "description": "IDs for individual word-level gaps. Each word the learner must supply has its own gap, including adjacent words in a multiword expression."
+    },
+    "answer_keys": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/answer_key"
+      },
+      "description": "Map accepted answer-key IDs to complete responses. Each response must provide exactly one word for every declared gap and no other fragments. These IDs are the accepted_answer_key values used by the profile update contract."
+    },
+    "success_checks_by_answer_key": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/grammar_observation"
+        },
+        "description": "May contain multiple independently justified grammar observations for the complete answer. An empty array means that the answer key provides no direct grammar observation."
+      },
+      "description": "Map each answer_keys[].id to all grammar observations warranted by that complete accepted response. Its keys must match the answer key IDs exactly. Do not infer an observation only because a form appears in the sentence."
+    },
+    "primary_grammar_target": {
+      "$ref": "#/$defs/grammar_target",
+      "description": "The exercise's single primary grammar assessment target. Additional grammar observations may be recorded per answer key when independently supported."
+    }
+  },
+  "$defs": {
+    "gap_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+    },
+    "prompt_part": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["text"],
+          "properties": {
+            "text": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["gap_id"],
+          "properties": {
+            "gap_id": {
+              "$ref": "#/$defs/gap_id"
+            }
+          }
+        }
+      ]
+    },
+    "answer_key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fragments"],
+      "properties": {
+        "fragments": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/answer_word"
+          },
+          "description": "Map each gap_id to exactly one word. The fragment keys must match the declared gaps exactly."
+        }
+      }
+    },
+    "answer_word": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S+$",
+      "description": "One word for one gap; a multiword expression is represented by multiple gaps and fragments."
+    },
+    "grammar_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taxonomy_node_id"],
+      "properties": {
+        "taxonomy_node_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "aspect_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "case_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "grammar_observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taxonomy_node_id", "evidence_class"],
+      "properties": {
+        "taxonomy_node_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_class": {
+          "enum": ["direct", "indirect"]
+        }
+      },
+      "description": "One independently justified grammar observation from the complete response, such as pronoun choice, auxiliary selection, or participle agreement."
+    }
+  }
+}

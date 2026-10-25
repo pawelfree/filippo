@@ -30,10 +30,6 @@ const trendNames = {
 };
 const taskNames = {
   fill_blank: 'uzupełnianie luki',
-  multiple_choice: 'wybór odpowiedzi',
-  transformation: 'przekształcanie',
-  translation: 'tłumaczenie',
-  free_response: 'swobodna odpowiedź',
 };
 const sourceNames = {
   none: 'brak oceny',

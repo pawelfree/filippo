@@ -11,11 +11,11 @@ Proces nauki opiera się na dwóch odrębnych, lecz współpracujących mechaniz
 
 Gramatyka nie stanowi osobnego rodzaju ćwiczenia. Jest rozwijana przy okazji nauki słownictwa, ponieważ poprawne użycie wyrazu w zdaniu często wymaga zastosowania odpowiednich form i konstrukcji gramatycznych.
 
-Materiałem ćwiczeniowym są włoskie zdania lub krótkie konteksty zawierające luki. Ich uzupełnianie może jednocześnie sprawdzać przypomnienie znaczenia, dobór formy fleksyjnej oraz zastosowanie określonej konstrukcji gramatycznej.
+Jedynym formatem ćwiczenia jest otwarte cloze: włoskie zdanie lub krótki kontekst z luką, którą użytkownik uzupełnia samodzielnie. Zadanie może jednocześnie sprawdzać przypomnienie znaczenia, dobór formy fleksyjnej oraz zastosowanie określonej konstrukcji gramatycznej.
 
 Każde ćwiczenie ma określony cel leksykalny oraz opis kompetencji gramatycznych, których zastosowanie może być obserwowane na podstawie odpowiedzi użytkownika.
 
-Ćwiczenia są generowane przez AI i zapisywane w bazie danych przed ich udostępnieniem użytkownikowi. Nauka odbywa się poprzez prezentowanie zapisanych ćwiczeń w paczkach po 20 zadań.
+Ćwiczenia są generowane przez AI i zapisywane w bazie danych przed ich udostępnieniem użytkownikowi. Nauka odbywa się poprzez prezentowanie zapisanych ćwiczeń w paczkach zadań.
 
 Aplikacja obejmuje także pozyskiwanie i porządkowanie słownictwa, ocenianie odpowiedzi, aktualizowanie stanu nauki oraz okresową analizę postępów. Wyniki tej analizy wpływają na gramatyczny charakter kolejnych generowanych ćwiczeń.
 
@@ -87,7 +87,7 @@ Materiał może pochodzić z ręcznego wprowadzania, importowanych list lub teks
 
 Przed wykorzystaniem materiału należy rozpoznać właściwe LexicalItem oraz odpowiadające im LexicalSense.
 
-AI może wspierać ten proces poprzez identyfikowanie podstawowej postaci jednostki, wyodrębnianie znaczeń, rozpoznawanie wyrażeń wielowyrazowych, określanie części mowy, charakterystycznej łączliwości, ograniczeń użycia i kontekstów znaczeniowych.
+AI wspiera ten proces poprzez identyfikowanie podstawowej postaci jednostki, wyodrębnianie znaczeń, rozpoznawanie wyrażeń wielowyrazowych, określanie części mowy, charakterystycznej łączliwości, ograniczeń użycia i kontekstów znaczeniowych.
 
 Dla znaczeń można przechowywać polskie odpowiedniki, definicje, przykłady i informacje niezbędne do prawidłowego generowania ćwiczeń.
 

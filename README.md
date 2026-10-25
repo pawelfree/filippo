@@ -1,26 +1,29 @@
-# Filippo · taksonomia gramatyki
+# Filippo
 
-Prosty, tylko do odczytu atlas włoskiej taksonomii gramatycznej oraz profilu kompetencyjnego, zbudowany w NestJS. Dane źródłowe znajdują się w `.ai/docs/`.
+Przeglądarka tylko do odczytu dla włoskiej taksonomii gramatycznej i profilu kompetencyjnego.
 
 ## Uruchomienie
 
-Wymagany Node.js 20 lub nowszy.
+Wymagany Node.js 20 lub nowszy. Uruchom z katalogu głównego repozytorium:
 
 ```sh
 npm install
 npm run start:dev
 ```
 
-Otwórz `http://localhost:3000`. Strona główna pokazuje kategorie, konstrukcje, warianty, ich definicje, orientacyjny poziom CEFR, dostępne przykłady i relacje. Druga strona, `http://localhost:3000/profile.html`, pokazuje szacowany poziom użytkownika CEFR osobno od szacunków opanowania wariantów, a także wyniki ćwiczeń i zidentyfikowane trudności. Wyszukiwarka filtruje elementy wybranej kategorii.
+Otwórz `http://localhost:3000/`, aby przeglądać taksonomię, lub `http://localhost:3000/profile.html`, aby zobaczyć profil. Domyślny port to `3000`; zmienisz go przez `PORT`. Serwer nasłuchuje na wszystkich interfejsach (`0.0.0.0`).
 
-## Walidacja
+## Dane i walidacja
 
-Podczas uruchamiania serwer waliduje taksonomię względem `.ai/docs/grammar_taxonomy/taxonomy.schema.json`, a profil względem `.ai/docs/competence_profile/profile.schema.json`, według JSON Schema draft 2020-12. Sprawdza też skrót SHA-256 taksonomii, zgodność zestawu ID wariantów, liczniki oraz zgodność wyliczonych mastery, confidence i trendu z modelem Beta-Binomial. Prior-only ma mastery 0.5 i confidence 0, więc nie jest prezentowany jako dowód opanowania. Jeśli kontrola się nie powiedzie, aplikacja nie startuje i wypisuje szczegóły błędu. Serwer nasłuchuje lokalnie pod adresem `127.0.0.1`.
+Dane źródłowe i schematy JSON znajdują się w `.ai/docs/`. Przy uruchomieniu aplikacja waliduje taksonomię i profil, a następnie sprawdza zgodność profilu z taksonomią oraz wyliczeniami Beta-Binomial. Błędne dane uniemożliwiają start i powodują komunikat błędu.
 
-```sh
-npm test
-npm run build
-npm start
-```
+## API
 
-Endpointy `/api/taxonomy` i `/api/profile` zwracają zwalidowane dane. Serwer zakłada uruchomienie z katalogu głównego repozytorium. Domyślny port to 3000; można go ustawić zmienną `PORT`.
+- `GET /api/taxonomy`
+- `GET /api/profile`
+
+## Polecenia
+
+- `npm test`
+- `npm run build`
+- `npm start` (po zbudowaniu)

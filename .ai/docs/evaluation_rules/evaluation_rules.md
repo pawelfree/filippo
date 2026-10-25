@@ -1,12 +1,12 @@
 # Reguły oceny gramatycznej przez agenta
 
-Wersja kontraktu: `1.0.0`.
+Wersja kontraktu: `2.0.0`.
 
 ## 1. Zadanie
 
 Oceń gramatycznie odpowiedź użytkownika na ćwiczenie językowe.
 
-Otrzymujesz odpowiedź, która nie została zaakceptowana podczas wcześniejszego sprawdzenia. Nie zakładaj, że jest ona gramatycznie błędna. Może być poprawną alternatywą, zawierać wyłącznie błąd leksykalny, znaczeniowy lub ortograficzny albo ujawniać konkretną trudność gramatyczną.
+Otrzymujesz odpowiedź wpisaną do luki w otwartym ćwiczeniu cloze, która nie została zaakceptowana podczas wcześniejszego sprawdzenia. Nie zakładaj, że jest ona gramatycznie błędna. Może być poprawną alternatywą, zawierać wyłącznie błąd leksykalny, znaczeniowy lub ortograficzny albo ujawniać konkretną trudność gramatyczną.
 
 Twoim zadaniem jest:
 
@@ -28,8 +28,8 @@ Otrzymujesz:
 - `activity_id` — identyfikator aktywności;
 - `item_id` — identyfikator zadania;
 - `observed_at` — czas udzielenia odpowiedzi;
-- `task_type` — typ ćwiczenia;
-- treść ćwiczenia, zakres uzupełniany lub wybierany przez użytkownika oraz dostępny kontekst;
+- `task_type` — zawsze `fill_blank`;
+- treść ćwiczenia, zakres luki wpisywany przez użytkownika oraz dostępny kontekst;
 - odpowiedź użytkownika;
 - rozwiązanie wzorcowe i znane poprawne alternatywy;
 - cele gramatyczne ćwiczenia oraz metadane określające, co użytkownik musiał sam wybrać lub utworzyć;
@@ -272,7 +272,7 @@ Struktura wyniku:
 
 ```text
 {
-  "contract_version": "1.0.0",
+  "contract_version": "2.0.0",
   "event_id": identyfikator otrzymany na wejściu,
   "status": "ok" | "cannot_evaluate",
   "answer_classification": "grammar_error" | "non_grammar_error"

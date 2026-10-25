@@ -1,7 +1,7 @@
 # Aktualizacja profilu gramatycznego przez skrypt
 
 Wersja algorytmu: `grammar-profile-update/1.0.0`.
-Dotyczy przekazanego `profile.schema.json` w wersji `1.3.0`.
+Dotyczy przekazanego `profile.schema.json` w wersji `2.0.0`. Jedynym obsługiwanym formatem zadania jest `fill_blank`.
 
 ## 1. Podział odpowiedzialności
 
@@ -57,7 +57,7 @@ Wszystkie czasy są zaufanymi znacznikami RFC 3339 ze strefą. `shown_at` to cza
 Poniższe pola są kontraktem skryptu z generatorem i mechanizmem sprawdzania odpowiedzi; nie są nowymi polami profilu:
 
 ```text
-task_type: jedna z wartości $defs.task_type w schemacie
+task_type: "fill_blank"
 practice_variant_ids: unikalne identyfikatory faktycznie ćwiczonych wariantów
 success_checks_by_answer_key:
   klucz zaakceptowanego rozwiązania:
@@ -83,7 +83,7 @@ FUNCTION CREATE_PROFILE(config, schema, taxonomy_bytes, identity, created_at):
     REQUIRE identity.taxonomy_id and identity.taxonomy_uri are supplied
 
     profile = {
-        schema_version: "1.3.0",
+        schema_version: "2.0.0",
         profile_id: identity.profile_id,
         learner_id: identity.learner_id,
         language: "it",
@@ -156,7 +156,7 @@ Stan deduplikacji jest przechowywany poza profilem, ponieważ schemat zabrania d
 
 ```text
 FUNCTION REGISTER_LIFECYCLE(profile, ledger, presentation, variant_ids):
-    REQUIRE presentation has verified shown_at and valid task_type
+    REQUIRE presentation has verified shown_at and task_type == "fill_blank"
     REQUIRE all variant_ids exist in profile
 
     FOR variant_id IN UNIQUE(variant_ids):
@@ -291,7 +291,7 @@ Poprawny wynik agenta można zachować przy oczekującym zdarzeniu, aby ponowien
 
 ### 6.1. Walidacja kontraktu agenta
 
-`VALIDATE_AGENT_CONTRACT` sprawdza cały wynik przed zastosowaniem jakiejkolwiek obserwacji. Wymagaj dokładnie jednego obiektu JSON bez dodatkowych pól. W obiekcie głównym wymagane są dokładnie `contract_version`, `event_id`, `status`, `answer_classification`, `reason` i `observations`. `contract_version` musi mieć obsługiwaną wartość `1.0.0` i odpowiadać wejściu; `event_id` musi być identyczny ze zdarzeniem. `reason` jest niepustym tekstem. Dopuszczalne wartości `status` to `ok` i `cannot_evaluate`, a wartości `answer_classification` to `grammar_error`, `non_grammar_error`, `acceptable_alternative`, `not_assessable`.
+`VALIDATE_AGENT_CONTRACT` sprawdza cały wynik przed zastosowaniem jakiejkolwiek obserwacji. Wymagaj dokładnie jednego obiektu JSON bez dodatkowych pól. W obiekcie głównym wymagane są dokładnie `contract_version`, `event_id`, `status`, `answer_classification`, `reason` i `observations`. `contract_version` musi mieć obsługiwaną wartość `2.0.0` i odpowiadać wejściu; `event_id` musi być identyczny ze zdarzeniem. `reason` jest niepustym tekstem. Dopuszczalne wartości `status` to `ok` i `cannot_evaluate`, a wartości `answer_classification` to `grammar_error`, `non_grammar_error`, `acceptable_alternative`, `not_assessable`.
 
 Przy `cannot_evaluate` wymagaj `answer_classification="not_assessable"`, pustego `observations` i konkretnego `reason`. Taki wynik kończy zdarzenie bez oceny kompetencji. Przy `ok` pusta lista obserwacji jest dozwolona. `grammar_error` wymaga co najmniej jednej obserwacji `incorrect`; pozostałe klasyfikacje nie mogą zawierać `incorrect`. Nie wyprowadzaj obserwacji z klasyfikacji całej odpowiedzi. Nie zmieniaj na jej podstawie `initial_grading`, `accepted_answer_key` ani FSRS. Rozbieżność między klasyfikacją agenta a pierwotnym odrzuceniem można zgłosić mechanizmowi sprawdzania do osobnej weryfikacji, bez blokowania poprawnych obserwacji gramatycznych.
 

@@ -14,7 +14,7 @@ Dokument jest listą prac i decyzji do domknięcia, a nie nową specyfikacją ju
 
 1. Aplikacja służy **jednemu użytkownikowi**.
 2. Jednostkami leksykalnymi są m.in. **LexicalItem** i **LexicalSense**. Należy zachować rozróżnienie formy/jednostki od jej znaczenia.
-3. **FSRS** działa na poziomie jednostki leksykalnej/znaczenia zgodnie z przyjętym wcześniej modelem, a nie pojedynczego zdania czy wygenerowanego ćwiczenia. Precyzyjną relację kluczy należy potwierdzić w istniejącym schemacie.
+3. **FSRS** działa na poziomie jednostki leksykalnej/znaczenia zgodnie z przyjętym wcześniej modelem, a nie pojedynczego zdania, wygenerowanego ćwiczenia ani luki. Schemat ćwiczenia wiąże całe ćwiczenie i wszystkie jego luki z jednym `LexicalSense`; szczegóły zdarzenia FSRS pozostają w pracach P0.4.
 4. Ćwiczenia generuje AI **przed prezentacją użytkownikowi** i zapisuje do bazy. Nie generuje się ich na żądanie przy sprawdzaniu odpowiedzi.
 5. Użytkownik otrzymuje **paczki po 20 ćwiczeń**. W ich skład wchodzą ćwiczenia dla jednostek wymagających powtórki według FSRS oraz nowe ćwiczenia, których jeszcze nie prezentowano. Nie należy przyjmować nieustalonej sztywnej proporcji tych dwóch źródeł.
 6. Odpowiedź jest najpierw sprawdzana przez mechanizm deterministyczny. **Agent diagnostyczny** jest potrzebny w razie odrzucenia pierwszej odpowiedzi, ponieważ klucz nie wyczerpuje wszystkich dopuszczalnych konstrukcji i niuansów gramatycznych.
@@ -28,11 +28,11 @@ Dokument jest listą prac i decyzji do domknięcia, a nie nową specyfikacją ju
 | Obszar / materiał | Stan wynikający z rozmów | Co pozostaje sprawdzić |
 |---|---|---|
 | Taksonomia gramatyczna | Opracowana; warianty i relacje | Kompletność względem scenariuszy generowania, wersja i spójność identyfikatorów |
-| Profil kompetencyjny i `profile.schema.json` | Opracowany, wersja 1.3.0 wskazana w `profile_update.md` | Aktualny plik, zgodność z końcowymi kontraktami |
+| Profil kompetencyjny i `profile.schema.json` | Opracowany, wersja 2.0.0 po zawężeniu formatu zadań do cloze | Aktualny plik, zgodność z końcowymi kontraktami |
 | `generation_rules.md` | Opracowane reguły generowania | Czy zawierają wszystkie metadane potrzebne sprawdzaniu i profilowi |
 | `evaluation_rules.md` | Przeredagowane jako instrukcja wejście → diagnoza → JSON dla agenta | Zgodność końcowego kontraktu ze skryptem i zestawem testów |
-| `profile_update.md` | Opracowany; docelowa wersja dopracowywana w Work | Weryfikacja wersji finalnej po zakończeniu prac |
-| `evaluation_config.json` | Parametry modelu przewidziane w `profile_update.md` | Istnienie rzeczywistego pliku, zgodność ze schematem i wersją profilu |
+| `profile_update.md` | Przygotowany algorytm aktualizacji profilu | Audyt zgodności z `profile.schema.json` 2.0.0, `evaluation_rules.md` i kontraktem zdarzeń |
+| `evaluation_config.json` | Plik konfiguracji parametrów modelu istnieje | Weryfikacja zakresów parametrów i decyzja, gdzie walidować konfigurację |
 | LexicalItem / LexicalSense | Model pojęciowy ustalony | Czy kompletne schematy, import i deduplikacja są już opisane |
 | FSRS | Jednostka harmonogramowania i rozdzielenie od ćwiczeń ustalone | Kontrakt zdarzeń i operacje konkretnej implementacji |
 
@@ -67,17 +67,17 @@ Dokument jest listą prac i decyzji do domknięcia, a nie nową specyfikacją ju
 
 **Prace:**
 
-- Zweryfikować/ustalić schemat ćwiczenia i jego powiązanie z docelowym `LexicalSense`/jednostką FSRS.
-- Zdefiniować treść i kontekst, fragment uzupełniany, rozwiązanie wzorcowe, akceptowane odpowiedzi oraz zasady ich normalizacji.
+- Dokończyć i zweryfikować przygotowany schemat ćwiczenia oraz jego powiązanie z docelowym `LexicalSense`/jednostką FSRS; jedno ćwiczenie może mieć wiele luk, ale tylko jeden `LexicalSense`.
+- Zdefiniować treść i kontekst, osobne identyfikatory luk, jednowyrazowe fragmenty odpowiedzi, rozwiązania wzorcowe, akceptowane odpowiedzi oraz zasady ich normalizacji.
 - Ująć cele gramatyczne i identyfikatory wariantów taksonomii, wersję taksonomii, a także metadane dotyczące wyboru dokonanego przez użytkownika.
-- Zapewnić **`success_checks_by_answer_key`**: dla każdego zaakceptowanego rozwiązania gotową mapę wariantów rzeczywiście potwierdzanych jego użyciem; samo pole „cel ćwiczenia” nie wystarcza.
+- Zapewnić **`success_checks_by_answer_key`**: dla każdego zaakceptowanego rozwiązania gotową mapę jednej lub wielu obserwacji wariantów rzeczywiście potwierdzanych pełną odpowiedzią; samo pole „cel ćwiczenia” nie wystarcza.
 - Ustalić tożsamość ćwiczenia jako treści oraz osobną tożsamość **prezentacji/wystąpienia** ćwiczenia.
 - Określić wersję generatora, status jakości, możliwość wycofania i poprawy zadania oraz zachowanie istniejących powiązań.
-- Uzgodnić zakres typów ćwiczeń: jeśli aplikacja pozostaje przy wpisywaniu odpowiedzi cloze, nie projektować nieużywanych typów wyboru.
+- Utrzymać jeden typ ćwiczenia: otwarte cloze z samodzielnym wpisaniem brakującego tekstu. Inne formaty zadań są poza zakresem.
 
-**Rezultat:** `exercise.schema.json` (jeśli jeszcze nie ma) i jednoznaczny kontrakt generowania/odczytu ćwiczenia.
+**Rezultat:** [exercise.schema.json](exercise.schema.json) i jednoznaczny kontrakt generowania/odczytu ćwiczenia.
 
-**Kryterium ukończenia:** każde ćwiczenie ma wystarczające dane do prezentacji, deterministycznego sprawdzenia, zbudowania wejścia dla agenta i poprawnej aktualizacji profilu po zaakceptowanym rozwiązaniu.
+**Kryterium ukończenia:** schemat wiąże wszystkie luki jednego ćwiczenia z jednym `LexicalSense`, pozwala na sąsiadujące lub rozdzielone luki po jednym słowie oraz na wiele obserwacji gramatycznych dla pełnej odpowiedzi; wystarcza też do prezentacji, deterministycznego sprawdzenia, wejścia dla agenta i poprawnej aktualizacji profilu.
 
 ### P0.3. Proces generowania, walidowania i zapisywania ćwiczeń
 
@@ -102,7 +102,7 @@ Dokument jest listą prac i decyzji do domknięcia, a nie nową specyfikacją ju
 
 **Prace:**
 
-- Potwierdzić klucz jednostki FSRS i zależność od `LexicalSense`, nie od konkretnego ćwiczenia.
+- Potwierdzić klucz jednostki FSRS i zależność od `LexicalSense`, nie od konkretnego ćwiczenia ani luki; wynik odpowiedzi dla ćwiczenia aktualizuje jedną właściwą jednostkę FSRS.
 - Wybrać/zweryfikować wersję implementacji FSRS i sposób przechowywania stanu.
 - Określić inicjalizację nowego materiału, oceny odpowiedzi i mapowanie wyniku ćwiczenia na wejście FSRS.
 - Uzgodnić, jak działają pierwsza próba, późniejsza poprawa tej samej prezentacji, wielokrotna prezentacja jednostki oraz pominięcie zadania.
@@ -138,7 +138,7 @@ Dokument jest listą prac i decyzji do domknięcia, a nie nową specyfikacją ju
 
 - Zdefiniować zdarzenia: utworzenie paczki, pokazanie zadania, pierwsza odpowiedź, wynik wstępny, diagnoza AI (gdy potrzebna), informacja zwrotna, kolejne próby, zakończenie lub porzucenie.
 - Zdefiniować wejście/wyjście checkera i przekazywanie zaakceptowanego klucza rozwiązania.
-- Zweryfikować kontrakt wejścia/wyjścia `evaluation_rules.md` oraz końcowy `profile_update.md`.
+- Zweryfikować kontrakt wejścia/wyjścia `evaluation_rules.md` oraz przygotowany `profile_update.md`.
 - Rozdzielić aktualizację FSRS od aktualizacji kompetencji; nie blokować całej sesji bez potrzeby przy niedostępności pojedynczej diagnozy.
 - Zapewnić identyfikatory zdarzeń, prezentacji i prób, idempotencję oraz bezpieczne ponowienia.
 - Określić stan sesji po ponownym uruchomieniu aplikacji, niedokończonym zadaniu, błędzie połączenia i chwilowym braku AI.
@@ -154,9 +154,8 @@ Dokument jest listą prac i decyzji do domknięcia, a nie nową specyfikacją ju
 
 **Prace:**
 
-- Odebrać i zweryfikować końcowy `profile_update.md` przygotowywany w Work.
-- Potwierdzić zgodność kontraktu JSON agenta z walidatorem wyników i algorytmem aktualizacji.
-- Potwierdzić aktualny `profile.schema.json` 1.3.0 oraz `evaluation_config.json` (priory, wagi, progi, EMA, trudności).
+- Poddać przygotowany `profile_update.md` audytowi: sprawdzić zgodność kontraktu JSON agenta z walidatorem wyników, algorytmem aktualizacji, `profile.schema.json` 2.0.0 i kontraktem zdarzeń.
+- Zweryfikować zakresy parametrów `evaluation_config.json` (priory, wagi, progi, EMA, trudności) i ustalić, czy waliduje je osobny schemat JSON, czy inny kontrakt.
 - Zweryfikować semantykę `correct`, `incorrect`, `not_assessable`, `direct`, `indirect`, `acceptable_alternative` i `cannot_evaluate` na przykładach włoskich.
 - Przetestować powiązane/kontrastowe warianty, poprawne alternatywy, literówki, błędy znaczeniowe i brak wystarczających danych.
 - Zdefiniować tryb korekty źle ocenionego zdarzenia bez podwójnej aktualizacji.
@@ -271,7 +270,7 @@ Dokument jest listą prac i decyzji do domknięcia, a nie nową specyfikacją ju
 | 3 | Generowanie, walidacja i repozytorium | Etapy 1–2, `generation_rules.md` | Ćwiczenia w bazie |
 | 4 | Integracja FSRS | Etap 1, definicja zdarzeń | Harmonogram jednostek |
 | 5 | Dobór i paczki po 20 | Etapy 3–4 | Gotowa sesja |
-| 6 | Sprawdzanie i aktualizacja profilu | Etapy 2, 5; finalne `evaluation_rules.md`, `profile_update.md` | Wiarygodny stan po odpowiedzi |
+| 6 | Sprawdzanie i aktualizacja profilu | Etapy 2, 5; zweryfikowane kontrakty `evaluation_rules.md` i `profile_update.md` | Wiarygodny stan po odpowiedzi |
 | 7 | Adaptacyjne generowanie | Etapy 3, 6 | Lepsze kolejne ćwiczenia |
 | 8 | Okresowa analiza postępów | Etapy 6–7 | Cele korekcyjne dla generatora |
 | 9 | Progresja, migracje, interfejs i testy systemowe | Wszystkie potrzebne kontrakty | System gotowy do stałego użycia |
@@ -318,7 +317,7 @@ Projekt merytoryczny pełnego cyklu jest domknięty, jeżeli:
 
 ## 8. Najbliższe decyzje i działania
 
-**Najpierw:** (1) sprawdzić dostępność i kompletność schematów `LexicalItem`/`LexicalSense`, (2) zamknąć proces dodawania słów/fraz, (3) zweryfikować model ćwiczenia wraz z `success_checks_by_answer_key`. Równolegle można odebrać końcowy `profile_update.md` i zweryfikować jego kontrakt z agentem.
+**Najpierw:** (1) sprawdzić dostępność i kompletność schematów `LexicalItem`/`LexicalSense`, (2) zamknąć proces dodawania słów/fraz, (3) zweryfikować model ćwiczenia wraz z `success_checks_by_answer_key`. Równolegle można przeprowadzić audyt zgodności przygotowanego `profile_update.md` z kontraktem agenta.
 
 **Następnie:** zamknąć FSRS i dobór paczek po 20; wykonać pełny test od nowej jednostki do pierwszej powtórki.
 

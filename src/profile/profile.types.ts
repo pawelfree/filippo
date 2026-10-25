@@ -8,12 +8,14 @@ export interface ProfileAssessment {
   algorithm_version: string | null;
 }
 
+export type TaskType = 'fill_blank';
+
 export interface ProfileDifficulty {
   code: string;
   description: string;
   severity: 'low' | 'medium' | 'high';
   contexts: Array<{
-    task_type: string;
+    task_type: TaskType;
     grammar_context: string;
     communication_context: string;
   }>;
@@ -21,7 +23,7 @@ export interface ProfileDifficulty {
     activity_id: string;
     item_id: string;
     observed_at: string;
-    task_type: string;
+    task_type: TaskType;
     expected_answer: string;
     learner_answer: string;
   }>;
@@ -43,7 +45,7 @@ export interface Competency {
     tasks_shown: number;
     tasks_attempted: number;
     last_shown_at: string | null;
-    task_types_seen: string[];
+    task_types_seen: TaskType[];
   };
   performance: {
     first_attempts: number;

@@ -1,0 +1,6 @@
+version = 3
+
+[[services]]
+name = "filippo"
+prepare_command = ["sh", "-c", "npm ci && npm run build"]
+start_command = ["npm", "start"]

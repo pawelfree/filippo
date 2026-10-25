@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.org/schemas/italian-grammar-profile/1.3.0",
+  "$id": "https://example.org/schemas/italian-grammar-profile/2.0.0",
   "title": "Italian grammar learner profile",
   "description": "The learner's grammar competency state used to select and generate exercises. A complete profile contains one competency record for every variant in the referenced taxonomy, including unpracticed variants. Categories and constructions group variants; CEFR aspects refine a variant but are not independent competencies. Per-variant mastery and confidence are derived from the stored Beta-Binomial state. A prior-only variant has mastery 0.5 and confidence 0; 0.5 is a prior mean, not evidence of learning. Scores are not CEFR levels.",
   "$comment": "JSON Schema checks field types and ranges but cannot enforce arithmetic equality between alpha, beta, mastery, and confidence or compare the competency ID set with the external taxonomy. The application must validate those invariants when saving a profile.",
@@ -8,7 +8,7 @@
   "additionalProperties": false,
   "required": ["schema_version", "profile_id", "learner_id", "language", "taxonomy", "bayesian_model", "estimated_user_level", "created_at", "updated_at", "competencies"],
   "properties": {
-    "schema_version": {"type": "string", "const": "1.3.0", "description": "Version of this profile structure and its Beta-Binomial update policy. Independent of the taxonomy schema version and taxonomy content fingerprint."},
+    "schema_version": {"type": "string", "const": "2.0.0", "description": "Version of this profile structure and its Beta-Binomial update policy. Independent of the taxonomy schema version and taxonomy content fingerprint."},
     "profile_id": {"type": "string", "minLength": 1, "description": "Stable, immutable identifier of this profile."},
     "learner_id": {"type": "string", "minLength": 1, "description": "Learner identifier within the application. Do not put a name or email address here."},
     "language": {"type": "string", "const": "it", "description": "ISO 639-1 code of the target language. This schema covers Italian grammar."},
@@ -147,7 +147,7 @@
         "tasks_shown": {"type": "integer", "minimum": 0, "description": "Total number of tasks shown to the learner for this node, including tasks that may have been skipped."},
         "tasks_attempted": {"type": "integer", "minimum": 0, "description": "Total number of tasks on which the learner attempted an answer. Must not exceed tasks_shown; the application checks this relationship."},
         "last_shown_at": {"type": ["string", "null"], "format": "date-time", "description": "Time the most recent task was shown, in RFC 3339 format; null if there has been no exposure."},
-        "task_types_seen": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/task_type"}, "description": "Task formats actually shown to the learner. Helps avoid judging mastery from only one task format."}
+        "task_types_seen": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/task_type"}, "description": "Cloze format shown to the learner. Contains fill_blank after the first task is shown."}
       }
     },
     "performance": {
@@ -177,7 +177,7 @@
       "description": "Task conditions in which the error occurred. Describes the stimulus, not a trait of the learner.",
       "required": ["task_type", "grammar_context", "communication_context"],
       "properties": {
-        "task_type": {"$ref": "#/$defs/task_type"},
+        "task_type": {"$ref": "#/$defs/task_type", "description": "The only supported exercise format: fill_blank."},
         "grammar_context": {"type": "string", "minLength": 1, "description": "Relevant grammatical condition, for example a motion verb in passato prossimo."},
         "communication_context": {"type": "string", "minLength": 1, "description": "Brief semantic or communicative setting of the task, for example recounting a trip."}
       }
@@ -190,7 +190,7 @@
         "activity_id": {"type": "string", "minLength": 1, "description": "Identifier of the session or activity in which this observation was recorded."},
         "item_id": {"type": "string", "minLength": 1, "description": "Identifier of the specific task within that activity."},
         "observed_at": {"type": "string", "format": "date-time", "description": "Time the error was observed, in RFC 3339 format."},
-        "task_type": {"$ref": "#/$defs/task_type"},
+        "task_type": {"$ref": "#/$defs/task_type", "description": "The only supported exercise format: fill_blank."},
         "expected_answer": {"type": "string", "minLength": 1, "description": "Expected correct answer or relevant excerpt; helps the AI understand the rule being tested."},
         "learner_answer": {"type": "string", "minLength": 1, "description": "Relevant excerpt of the learner's answer showing the error. Do not store unnecessary text or personal information."}
       }
@@ -210,8 +210,8 @@
       }
     },
     "task_type": {
-      "type": "string", "enum": ["fill_blank", "multiple_choice", "transformation", "translation", "free_response"],
-      "description": "Task format: fill-in-the-blank, multiple choice, transformation, translation, or free response. A shared vocabulary makes exposure, contexts, and evidence comparable."
+      "type": "string", "const": "fill_blank",
+      "description": "Open cloze exercise completed by entering the missing text. This is the only supported exercise format."
     }
   }
 }

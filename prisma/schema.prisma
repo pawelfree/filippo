@@ -13,6 +13,7 @@ model LexicalSense {
   lexicalItem String
   definition  String
   detailsJson String?
+  identityKey String?       @unique
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   tasks       GeneratedTask[]

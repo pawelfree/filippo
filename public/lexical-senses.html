@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Filippo · LexicalSense</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/lexical-senses.css" />
+    <script src="/lexical-senses.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">F</span><span>filippo <small>/ słownictwo</small></span></div>
+      <nav class="page-nav" aria-label="Nawigacja główna">
+        <a href="/">Taksonomia</a>
+        <a href="/profile.html">Profil kompetencyjny</a>
+        <a class="current" href="/lexical-senses.html">LexicalSense</a>
+      </nav>
+    </header>
+    <main class="shell lexical-shell">
+      <section class="intro">
+        <div>
+          <p class="eyebrow">Włoskie słownictwo</p>
+          <h1>Dodaj <em>znaczenia</em></h1>
+          <p>Wpisz słowa lub całe wyrażenia. Sprawdź istniejące znaczenia, przejrzyj propozycje i zapisz tylko wybrane.</p>
+        </div>
+      </section>
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+      <div id="error" class="error" role="alert" hidden></div>
+      <section class="lexical-panel" aria-labelledby="input-heading">
+        <div class="section-heading"><span>01 / Lista wejściowa</span><h2 id="input-heading">Słowa i wyrażenia</h2></div>
+        <div id="items"></div>
+        <div class="actions">
+          <button id="add-item" type="button" class="secondary">Dodaj pozycję</button>
+          <button id="check-items" type="button">Sprawdź bazę</button>
+        </div>
+        <p class="hint">Każde wyrażenie wpisz w całości w jednym polu. Puste pola są pomijane.</p>
+      </section>
+      <section id="existing-section" class="lexical-panel" aria-labelledby="existing-heading" hidden>
+        <div class="section-heading"><span>02 / Sprawdzenie</span><h2 id="existing-heading">Istniejące znaczenia</h2></div>
+        <div id="existing-list"></div>
+        <div class="actions"><button id="generate-senses" type="button" disabled>Generuj propozycje</button></div>
+      </section>
+      <section id="proposal-section" class="lexical-panel" aria-labelledby="proposal-heading" hidden>
+        <div class="section-heading"><span>03 / Przegląd</span><h2 id="proposal-heading">Propozycje LexicalSense</h2></div>
+        <div id="proposal-list"></div>
+        <div id="deferred-list"></div>
+        <div id="coverage-list"></div>
+        <div class="actions"><button id="save-senses" type="button" disabled>Zapisz wybrane znaczenia</button></div>
+        <div id="save-result" aria-live="polite"></div>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,6 +1,6 @@
 # Filippo
 
-Przeglądarka tylko do odczytu dla włoskiej taksonomii gramatycznej i profilu kompetencyjnego.
+Przeglądarka włoskiej taksonomii gramatycznej i profilu kompetencyjnego oraz strona tworzenia znaczeń leksykalnych.
 
 ## Uruchomienie
 
@@ -13,6 +13,8 @@ npm run start:dev
 
 Otwórz `http://localhost:3000/`, aby przeglądać taksonomię, lub `http://localhost:3000/profile.html`, aby zobaczyć profil. Domyślny port to `3000`; zmienisz go przez `PORT`. Serwer nasłuchuje na wszystkich interfejsach (`0.0.0.0`).
 
+Strona `http://localhost:3000/lexical-senses.html` pozwala sprawdzić istniejące znaczenia, wygenerować propozycje i zapisać wybrane `LexicalSense`. Generowanie wymaga `OPENAI_API_KEY` w `.env`; opcjonalne `OPENAI_MODEL` domyślnie wskazuje `gpt-5`. Klucz pozostaje na serwerze. Odpowiedź OpenAI korzysta ze skilla `create-lexical-senses`, Structured Outputs i wyszukiwania w sieci.
+
 ## Dane i walidacja
 
 Dane źródłowe i schematy JSON znajdują się w `.ai/docs/`. Przy uruchomieniu aplikacja waliduje taksonomię i profil, a następnie sprawdza zgodność profilu z taksonomią oraz wyliczeniami Beta-Binomial. Błędne dane uniemożliwiają start i powodują komunikat błędu.
@@ -21,6 +23,9 @@ Dane źródłowe i schematy JSON znajdują się w `.ai/docs/`. Przy uruchomieniu
 
 - `GET /api/taxonomy`
 - `GET /api/profile`
+- `POST /api/lexical-senses/check` — `{ "items": ["casa"] }`; zwraca istniejące znaczenia i `checkId`.
+- `POST /api/lexical-senses/generate` — `{ "items": ["casa"], "checkId": "..." }`; zwraca propozycje, `deferred`, `coverage` i `draftId`.
+- `POST /api/lexical-senses/save` — `{ "draftId": "...", "selected": [{ "index": 0, "definition_pl": "..." }] }`; zwraca wynik zapisu dla każdego wyboru.
 
 ## Baza danych
 
@@ -34,6 +39,8 @@ npm run db:migrate
 ```
 
 Domyślny plik bazy to `prisma/dev.db`. Schemat przechowuje sensy leksykalne, wygenerowane zadania, stan FSRS per użytkownik i sens oraz historię powtórek. Zmiany modelu wprowadzaj przez `npm run db:migrate:dev -- --name opis-zmiany`, a wdrożone migracje stosuj przez `npm run db:migrate`.
+
+Propozycje i identyfikatory weryfikacji są przechowywane w pamięci serwera przez ograniczony czas. Po restarcie trzeba ponowić weryfikację i generowanie. Ponowny zapis tego samego znaczenia nie tworzy drugiego rekordu.
 
 ## Polecenia
 

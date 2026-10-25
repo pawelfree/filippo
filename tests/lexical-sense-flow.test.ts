@@ -13,7 +13,7 @@ const sense = (item: string, italian: string, polish: string) => ({
   definition_it: italian, definition_pl: polish, glosses_pl: [polish],
   usage: { register: 'neutral', patterns_it: [], collocations_it: [], constraints_pl: [] },
   examples: [{ sentence_it: `Questa è ${item}.`, translation_pl: `To jest ${polish}.`, origin: 'authored' }],
-  evidence: { e1: { source_type: 'dictionary', locator: 'https://example.org/dizionario', supports: ['meaning', 'part_of_speech'] } },
+  evidence: { e1: { source_type: 'dictionary', locator: 'https://example.org/dizionario', supports: ['meaning', 'part_of_speech', 'register'] } },
 });
 
 async function waitFor(predicate: () => boolean): Promise<void> {
@@ -48,7 +48,7 @@ test('user reviews existing senses, corrects a generated sense, and saves only t
     for await (const chunk of request) chunks.push(Buffer.from(chunk));
     requests.push(JSON.parse(Buffer.concat(chunks).toString('utf8')));
     response.setHeader('content-type', 'application/json');
-    response.end(JSON.stringify({ output_text: JSON.stringify({
+    response.end(JSON.stringify({ output: [{ type: 'web_search_call', status: 'completed' }], output_text: JSON.stringify({
       lexical_senses: [sense('casa', 'insieme di persone della stessa famiglia', 'rodzina'), sense('ponte', 'struttura per attraversare', 'most')],
       deferred: [{ input_form_it: 'xzy', reason_code: 'not_found_in_sources', needed_evidence_or_decision: 'Sprawdzić pisownię.' }],
       coverage: [
@@ -106,6 +106,7 @@ test('user reviews existing senses, corrects a generated sense, and saves only t
     polish.value = 'członkowie rodziny';
     polish.dispatchEvent(new window.Event('input', { bubbles: true }));
     cards[0].querySelector<HTMLInputElement>('[data-select-sense]')!.click();
+    cards[0].querySelector<HTMLInputElement>('[data-confirm-distinct]')!.click();
     doc.querySelector<HTMLButtonElement>('#save-senses')!.click();
     await waitFor(() => doc.body.textContent!.includes('Zapisano 1'));
     const check = await fetch(`${base}/api/lexical-senses/check`, {

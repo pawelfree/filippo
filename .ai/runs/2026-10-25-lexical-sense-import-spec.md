@@ -9,7 +9,7 @@ Przygotować specyfikację strony do sprawdzania, generowania, korekty i zapisu 
 
 ## Powiązana specyfikacja
 
-[Specyfikacja importu LexicalSense](../specs/2026-10-25-lexical-sense-import.md)
+[Specyfikacja importu LexicalSense](../specs/implemented/2026-10-25-lexical-sense-import.md)
 
 ## Działania i ustalenia
 

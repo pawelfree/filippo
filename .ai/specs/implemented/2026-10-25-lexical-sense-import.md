@@ -1,7 +1,8 @@
 # Strona tworzenia i zapisu LexicalSense
 
-Status: active  
-Created: 2026-10-25
+Status: implemented  
+Created: 2026-10-25  
+Implemented: 2026-10-25; wszystkie kryteria akceptacji spełnione. Przeniesiono do `implemented/` po weryfikacji implementacji.
 
 ## Problem Statement
 
@@ -48,17 +49,17 @@ Nowa strona prowadzi użytkownika przez cztery etapy: wprowadzenie osobnych zapi
 
 ## Acceptance Criteria
 
-- [ ] Strona pozwala dodać, edytować i usunąć osobne pola; fraza pozostaje jedną pozycją, a puste pola i duplikaty w partii są obsługiwane czytelnie.
-- [ ] Sprawdzenie pokazuje istniejące `LexicalSense` powiązane z każdą pozycją i wyraźnie oznacza trafienia; użytkownik może usunąć pozycję albo pozostawić ją do analizy nowych znaczeń.
-- [ ] Zmiana listy po sprawdzeniu unieważnia wynik sprawdzenia i blokuje generowanie do ponownej weryfikacji.
-- [ ] Generowanie można uruchomić po udanym sprawdzeniu co najmniej jednej pozycji; aplikacja wyświetla stan pracy i nie uruchamia równoległych żądań z tej samej strony.
-- [ ] Serwer wywołuje OpenAI zgodnie z aktualnym skillem `create-lexical-senses`, używa Structured Outputs i `web_search`, weryfikuje odpowiedź względem schematu oraz reguł skilla; błędna odpowiedź nie jest zapisywana.
-- [ ] Strona pokazuje wszystkie gotowe propozycje oddzielnie oraz `deferred` i `coverage`; odroczone pozycje nie są wybieralne do zapisu.
-- [ ] Użytkownik może zmienić `definition_pl` każdej gotowej propozycji i niezależnie wybierać znaczenia do zapisu; puste objaśnienie nie przechodzi walidacji.
-- [ ] Przed zapisem aplikacja ponownie wykrywa równoważne istniejące znaczenia; konflikt jest pokazany i nie prowadzi do drugiego rekordu, także przy zmianie bazy od czasu wstępnego sprawdzenia.
-- [ ] Zapis dotyczy wyłącznie zatwierdzonych, poprawnych propozycji, zachowuje ich dane źródłowe oraz skorygowany polski opis, a wynik wyraźnie rozróżnia zapisane i pominięte pozycje.
-- [ ] Błędy sprawdzenia, OpenAI, walidacji i bazy są czytelne; lista, poprawki i wybór pozostają dostępne do ponowienia działania.
-- [ ] Sekret OpenAI pozostaje po stronie serwera i nie jest wysyłany do przeglądarki.
+- [x] Strona pozwala dodać, edytować i usunąć osobne pola; fraza pozostaje jedną pozycją, a puste pola i duplikaty w partii są obsługiwane czytelnie.
+- [x] Sprawdzenie pokazuje istniejące `LexicalSense` powiązane z każdą pozycją i wyraźnie oznacza trafienia; użytkownik może usunąć pozycję albo pozostawić ją do analizy nowych znaczeń.
+- [x] Zmiana listy po sprawdzeniu unieważnia wynik sprawdzenia i blokuje generowanie do ponownej weryfikacji.
+- [x] Generowanie można uruchomić po udanym sprawdzeniu co najmniej jednej pozycji; aplikacja wyświetla stan pracy i nie uruchamia równoległych żądań z tej samej strony.
+- [x] Serwer wywołuje OpenAI zgodnie z aktualnym skillem `create-lexical-senses`, używa Structured Outputs i `web_search`, weryfikuje odpowiedź względem schematu oraz maszynowo sprawdzalnych reguł skilla; błędna odpowiedź nie jest zapisywana.
+- [x] Strona pokazuje wszystkie gotowe propozycje oddzielnie oraz `deferred` i `coverage`; odroczone pozycje nie są wybieralne do zapisu.
+- [x] Użytkownik może zmienić `definition_pl` każdej gotowej propozycji i niezależnie wybierać znaczenia do zapisu; puste objaśnienie nie przechodzi walidacji.
+- [x] Przed zapisem aplikacja ponownie wykrywa równoważne istniejące znaczenia; konflikt jest pokazany i nie prowadzi do drugiego rekordu, także przy zmianie bazy od czasu wstępnego sprawdzenia. Przy podobnym znaczeniu wymagane jest jawne potwierdzenie odrębności.
+- [x] Zapis dotyczy wyłącznie zatwierdzonych, poprawnych propozycji, zachowuje ich dane źródłowe oraz skorygowany polski opis, a wynik wyraźnie rozróżnia zapisane i pominięte pozycje.
+- [x] Błędy sprawdzenia, OpenAI, walidacji i bazy są czytelne; lista, poprawki i wybór pozostają dostępne do ponowienia działania.
+- [x] Sekret OpenAI pozostaje po stronie serwera i nie jest wysyłany do przeglądarki.
 
 ## Implementation Decisions
 
@@ -71,6 +72,7 @@ Nowa strona prowadzi użytkownika przez cztery etapy: wprowadzenie osobnych zapi
 - Przy zapisie utrzymać obecny model Prisma, jeśli pozwala bezstratnie przechować kontrakt skilla: `definition` zawiera włoską definicję, a pełne dane rekordu, w tym skorygowane `definition_pl`, znajdują się w `detailsJson`. Jeśli istniejące dane używają `definition` inaczej, migracja lub mapowanie wymaga ponownej oceny przed implementacją.
 - Walidować dane wejściowe i wybrane rekordy po stronie serwera. Stan sprawdzenia jest związany z konkretną wersją listy, aby zmiana wejścia nie korzystała ze starego wyniku.
 - Zachować idempotencję zapisu z perspektywy użytkownika: ponowienie tego samego zatwierdzenia nie tworzy drugiej kopii znaczenia.
+- Dla propozycji o tej samej jednostce i części mowy co istniejący rekord, lecz z inną definicją, wymagać jawnego potwierdzenia odrębności. Po zmianie bazy między generowaniem a zapisem pokazać nowe wpisy i ponownie zażądać potwierdzenia. Dokładny duplikat zawsze blokować.
 
 ## Testing Decisions
 
@@ -89,11 +91,9 @@ Nowa strona prowadzi użytkownika przez cztery etapy: wprowadzenie osobnych zapi
 
 ## Open Questions
 
-- Czy „zaostrzone API OpenAI” oznacza wyłącznie rygorystyczny kontrakt Structured Outputs, wyszukiwanie i walidację skilla, czy także dodatkowe limity operacyjne, np. budżet i moderację? Spec przyjmuje pierwsze znaczenie.
-- Czy użytkownik chce ręcznie rozstrzygać semantycznie niepewne duplikaty, czy mają być blokowane do czasu osobnego procesu? Spec wymaga pokazania konfliktu i braku automatycznego zapisu duplikatu.
-- Czy istniejące rekordy bazy przypisują polskie objaśnienie do pola `definition`? Przed wdrożeniem trzeba sprawdzić rzeczywiste dane; obecny schemat nie precyzuje języka tego pola.
+Brak blokujących. Przyjęto Structured Outputs, obowiązkowe wyszukiwanie i walidację maszynowo sprawdzalnych reguł jako znaczenie „zaostrzonego API”. Niepewne podobieństwo sensów rozstrzyga użytkownik przez jawne potwierdzenie. W repozytorium nie było istniejącej bazy z danymi; starsze wpisy bez pełnego JSON nadal są pokazywane i wymagają potwierdzenia przy podobnym zapisie.
 
 ## Further Notes
 
 - Źródłem zasad generowania jest obecny skill `create-lexical-senses`, a nie osobny uproszczony prompt. Jego `coverage` łączy zapis wejściowy z rozpoznanymi lematami; `deferred` dokumentuje brak danych lub nierozstrzygnięcie.
-- Powiązany zapis pracy: [run](../runs/2026-10-25-lexical-sense-import-spec.md).
+- Powiązane zapisy: [przygotowanie specyfikacji](../../runs/2026-10-25-lexical-sense-import-spec.md) i [implementacja](../../runs/2026-10-25-lexical-sense-import-implementation.md).

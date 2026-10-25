@@ -25,7 +25,7 @@ interface BatchResult {
   coverage: Array<Record<string, unknown>>;
 }
 
-interface Selection { index: number; definition_pl: string }
+interface Selection { index: number; definition_pl: string; confirmedDistinct?: boolean }
 
 const skillRoot = join(process.cwd(), '.ai/docs/create-lexical-senses');
 const readSkill = (path: string): string => readFileSync(join(skillRoot, path), 'utf8');
@@ -55,6 +55,23 @@ function publicSense(record: LexicalSense): Record<string, unknown> {
     id: record.id, lexical_item_it: record.lexicalItem, definition_it: record.definition,
     definition_pl: details?.definition_pl, part_of_speech: details?.part_of_speech,
   };
+}
+
+function sameItem(record: LexicalSense, proposal: SenseRecord): boolean {
+  return normalize(record.lexicalItem) === normalize(proposal.lexical_item_it);
+}
+
+function equivalent(record: LexicalSense, proposal: SenseRecord): boolean {
+  if (!sameItem(record, proposal)) return false;
+  const details = parseStored(record);
+  if (details?.part_of_speech && details.part_of_speech !== proposal.part_of_speech) return false;
+  return record.identityKey === identity(proposal) || (details ? identity(details) === identity(proposal) : normalize(record.definition) === normalize(proposal.definition_it));
+}
+
+function possiblyEquivalent(record: LexicalSense, proposal: SenseRecord): boolean {
+  if (!sameItem(record, proposal)) return false;
+  const partOfSpeech = parseStored(record)?.part_of_speech;
+  return !partOfSpeech || partOfSpeech === proposal.part_of_speech;
 }
 
 @Injectable()
@@ -126,7 +143,7 @@ export class LexicalSensesService {
         body: JSON.stringify({
           model: process.env.OPENAI_MODEL || 'gpt-5', instructions,
           input: JSON.stringify({ items, existing_senses: existing, guidance: 'Nie powtarzaj istniejących znaczeń; zwróć nowe odczytania oraz coverage i deferred.' }),
-          tools: [{ type: 'web_search' }], text: { format: responseFormat },
+          tools: [{ type: 'web_search' }], tool_choice: 'required', text: { format: responseFormat },
         }),
         signal: AbortSignal.timeout(180_000),
       });
@@ -136,7 +153,10 @@ export class LexicalSensesService {
     if (!response.ok) throw new BadGatewayException(`OpenAI zwróciło błąd (${response.status}). Spróbuj ponownie.`);
     let raw: unknown;
     try { raw = await response.json(); } catch { throw new BadGatewayException('OpenAI zwróciło nieczytelną odpowiedź.'); }
-    const output = raw as { output_text?: string; output?: Array<{ content?: Array<{ type?: string; text?: string }> }> };
+    const output = raw as { output_text?: string; output?: Array<{ type?: string; status?: string; content?: Array<{ type?: string; text?: string }> }> };
+    if (!output.output?.some((item) => item.type === 'web_search_call' && item.status === 'completed')) {
+      throw new BadGatewayException('OpenAI nie potwierdziło wyszukiwania źródeł. Wynik nie został przyjęty.');
+    }
     const text = output.output_text || output.output?.flatMap((item) => item.content || []).filter((item) => item.type === 'output_text').map((item) => item.text).join('');
     let batch: unknown;
     try { batch = JSON.parse(text || ''); } catch { throw new BadGatewayException('OpenAI zwróciło niepoprawny JSON.'); }
@@ -145,9 +165,20 @@ export class LexicalSensesService {
       if (!validateSense(record) || !record.examples.every((example) => example.origin !== 'attested' || (example.evidence_id && record.evidence[example.evidence_id]))) {
         throw new BadGatewayException('Wygenerowany LexicalSense nie spełnia reguł skilla.');
       }
-      if (!Object.values(record.evidence).some((evidence) => evidence.supports.includes('meaning'))) {
-        throw new BadGatewayException('Wygenerowany LexicalSense nie ma dowodu znaczenia.');
+      const evidence = Object.values(record.evidence);
+      const supports = (claim: string) => evidence.some((entry) => entry.supports.includes(claim));
+      if (!supports('meaning') || !supports('part_of_speech') ||
+          (record.usage.register !== 'unknown' && !supports('register')) ||
+          (record.usage.patterns_it.length > 0 && !supports('pattern')) ||
+          (record.usage.constraints_pl.length > 0 && !supports('constraint')) ||
+          record.examples.some((example) => example.origin === 'attested' && (!example.evidence_id || !record.evidence[example.evidence_id]?.supports.includes('example'))) ||
+          evidence.some((entry) => ['dictionary', 'corpus', 'lexical_database'].includes(entry.source_type) && !/^https?:\/\//i.test(entry.locator))) {
+        throw new BadGatewayException('Wygenerowany LexicalSense nie ma wystarczających dowodów dla swoich twierdzeń.');
       }
+    }
+    const coveredInputs = new Set(batch.coverage.map((item) => normalize(String(item.matched_input_form_it || item.input_form_it || item.lexical_item_it || ''))));
+    if (items.some((item) => !coveredInputs.has(normalize(item)))) {
+      throw new BadGatewayException('Odpowiedź OpenAI nie opisuje zakresu analizy wszystkich wejść.');
     }
     if (new Set(batch.lexical_senses.map(identity)).size !== batch.lexical_senses.length) {
       throw new BadGatewayException('OpenAI zwróciło powtórzone znaczenia.');
@@ -155,8 +186,8 @@ export class LexicalSensesService {
     let related: LexicalSense[];
     try { related = await this.existingFor(batch.lexical_senses.map((record) => record.lexical_item_it).filter((item, index, all) => all.indexOf(item) === index)); }
     catch { throw new ServiceUnavailableException('Baza danych jest chwilowo niedostępna. Spróbuj ponownie.'); }
-    const matches = batch.lexical_senses.map((record) => related.filter((stored) => normalize(stored.lexicalItem) === normalize(record.lexical_item_it)).map((stored) => ({
-      ...publicSense(stored), equivalent: stored.identityKey === identity(record) || (parseStored(stored) ? identity(parseStored(stored)!) === identity(record) : normalize(stored.definition) === normalize(record.definition_it)),
+    const matches = batch.lexical_senses.map((record) => related.filter((stored) => sameItem(stored, record)).map((stored) => ({
+      ...publicSense(stored), equivalent: equivalent(stored, record), possible: possiblyEquivalent(stored, record),
     })));
     const draftId = randomUUID();
     this.drafts.set(draftId, { records: batch.lexical_senses, expires: Date.now() + 60 * 60_000 });
@@ -168,7 +199,7 @@ export class LexicalSensesService {
     if (!draft || draft.expires < Date.now()) throw new BadRequestException('Wynik generowania wygasł. Wygeneruj go ponownie.');
     if (!Array.isArray(body.selected) || body.selected.length < 1 || body.selected.length > draft.records.length) throw new BadRequestException('Wybierz co najmniej jeden poprawny LexicalSense.');
     const selected = body.selected as Selection[];
-    if (selected.some((item) => !Number.isInteger(item?.index) || item.index < 0 || item.index >= draft.records.length || typeof item.definition_pl !== 'string' || !item.definition_pl.trim() || item.definition_pl.length > 2000) || new Set(selected.map((item) => item.index)).size !== selected.length) {
+    if (selected.some((item) => !Number.isInteger(item?.index) || item.index < 0 || item.index >= draft.records.length || typeof item.definition_pl !== 'string' || !item.definition_pl.trim() || item.definition_pl.length > 2000 || (item.confirmedDistinct !== undefined && typeof item.confirmedDistinct !== 'boolean')) || new Set(selected.map((item) => item.index)).size !== selected.length) {
       throw new BadRequestException('Wybór lub polskie objaśnienie są niepoprawne.');
     }
     const results: Array<Record<string, unknown>> = [];
@@ -179,8 +210,10 @@ export class LexicalSensesService {
       try {
         const result = await this.prisma.$transaction(async (tx) => {
           const candidates = await tx.lexicalSense.findMany({ where: { language: 'it' } });
-          const duplicate = candidates.find((candidate) => normalize(candidate.lexicalItem) === normalize(record.lexical_item_it) && (candidate.identityKey === key || (parseStored(candidate) ? identity(parseStored(candidate)!) === key : normalize(candidate.definition) === normalize(record.definition_it))));
+          const duplicate = candidates.find((candidate) => equivalent(candidate, record));
           if (duplicate) return { index: item.index, status: 'conflict', id: duplicate.id };
+          const possible = candidates.filter((candidate) => possiblyEquivalent(candidate, record));
+          if (possible.length && !item.confirmedDistinct) return { index: item.index, status: 'review_required', existing: possible.map(publicSense) };
           const stored = await tx.lexicalSense.create({ data: {
             language: record.language, lexicalItem: record.lexical_item_it, definition: record.definition_it,
             detailsJson: JSON.stringify(record), identityKey: key,

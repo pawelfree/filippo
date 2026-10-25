@@ -26,7 +26,11 @@ function updateButtons() {
   ui.check.disabled = busy;
   ui.add.disabled = busy;
   ui.generate.disabled = busy || !checkId;
-  ui.save.disabled = busy || !draft || !ui.proposals.querySelector('[data-select-sense]:checked');
+  const selectedCards = [...ui.proposals.querySelectorAll('[data-sense-card]')].filter((card) => card.querySelector('[data-select-sense]').checked);
+  ui.save.disabled = busy || !draft || !selectedCards.length || selectedCards.some((card) => {
+    const confirm = card.querySelector('[data-confirm-distinct]');
+    return confirm && !confirm.checked;
+  });
 }
 function invalidate() {
   revision += 1;
@@ -122,6 +126,18 @@ function renderProposals(result) {
     checkbox.addEventListener('change', updateButtons);
     choose.append(checkbox, element('span', '', checkbox.disabled ? 'Już zapisane — konflikt' : 'Wybierz do zapisu'));
     card.append(label, choose);
+    if (!checkbox.disabled && matches.some((match) => match.possible)) {
+      const review = element('label', 'choose-label');
+      const confirmation = element('input');
+      confirmation.type = 'checkbox';
+      confirmation.setAttribute('data-confirm-distinct', '');
+      confirmation.addEventListener('change', updateButtons);
+      review.append(confirmation, element('span', '', 'Potwierdzam: to odrębne znaczenie od pokazanych wpisów.'));
+      card.append(review);
+    }
+    const saveState = element('p', 'save-state');
+    saveState.setAttribute('data-save-state', '');
+    card.append(saveState);
     ui.proposals.append(card);
   });
   if (!result.lexical_senses.length) ui.proposals.append(element('p', 'hint', 'Brak gotowych propozycji.'));
@@ -132,7 +148,12 @@ function renderProposals(result) {
   if (result.coverage.length) {
     const details = element('details');
     details.append(element('summary', '', 'Zakres analizy'));
-    for (const item of result.coverage) details.append(element('p', 'hint', `${item.lexical_item_it || item.input_form_it}: ${item.notes_pl}`));
+    for (const item of result.coverage) {
+      const source = item.matched_input_form_it || item.input_form_it || item.lexical_item_it;
+      const target = item.lexical_item_it && item.lexical_item_it !== source ? ` → ${item.lexical_item_it}` : '';
+      const part = item.part_of_speech ? ` · ${item.part_of_speech}` : '';
+      details.append(element('p', 'hint', `${source}${target}${part} · ${item.selection_basis}: ${item.notes_pl}`));
+    }
     ui.coverage.append(details);
   }
   ui.proposalsSection.hidden = false;
@@ -174,7 +195,7 @@ ui.save.addEventListener('click', async () => {
   if (busy || !draft) return;
   const selected = [...ui.proposals.querySelectorAll('[data-sense-card]')].flatMap((card, index) => {
     if (!card.querySelector('[data-select-sense]').checked) return [];
-    return [{ index, definition_pl: card.querySelector('[data-definition-pl]').value.trim() }];
+    return [{ index, definition_pl: card.querySelector('[data-definition-pl]').value.trim(), confirmedDistinct: !!card.querySelector('[data-confirm-distinct]')?.checked }];
   });
   if (selected.some((item) => !item.definition_pl)) { setError('Uzupełnij polskie objaśnienia wybranych znaczeń.'); return; }
   try {
@@ -183,7 +204,23 @@ ui.save.addEventListener('click', async () => {
     const result = await post('/api/lexical-senses/save', { draftId: draft.draftId, selected });
     const saved = result.results.filter((item) => item.status === 'saved').length;
     const conflicts = result.results.filter((item) => item.status === 'conflict').length;
-    ui.saveResult.textContent = `Zapisano ${saved}. Konflikty: ${conflicts}.`;
+    const reviews = result.results.filter((item) => item.status === 'review_required').length;
+    for (const item of result.results) {
+      const card = ui.proposals.querySelectorAll('[data-sense-card]')[item.index];
+      const state = card.querySelector('[data-save-state]');
+      state.textContent = item.status === 'saved' ? 'Zapisano' : item.status === 'conflict' ? 'Konflikt: znaczenie jest już w bazie.' : 'Wymaga potwierdzenia odrębności znaczenia.';
+      if (item.status === 'review_required' && !card.querySelector('[data-confirm-distinct]')) {
+        for (const existing of item.existing) card.append(element('p', 'hint', `Nowy wpis w bazie: ${existing.definition_it}${existing.definition_pl ? ` · ${existing.definition_pl}` : ''}`));
+        const review = element('label', 'choose-label');
+        const confirmation = element('input');
+        confirmation.type = 'checkbox';
+        confirmation.setAttribute('data-confirm-distinct', '');
+        confirmation.addEventListener('change', updateButtons);
+        review.append(confirmation, element('span', '', 'Potwierdzam: to odrębne znaczenie od nowych wpisów.'));
+        card.append(review);
+      }
+    }
+    ui.saveResult.textContent = `Zapisano ${saved}. Konflikty: ${conflicts}. Do potwierdzenia: ${reviews}.`;
     setStatus('Zapis zakończony.');
   } catch (error) { setError(error.message); setStatus('Nie udało się zapisać. Poprawki i wybór pozostały na stronie.'); }
   finally { busy = false; updateButtons(); }

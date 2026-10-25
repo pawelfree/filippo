@@ -1,0 +1,742 @@
+{
+  "type": "json_schema",
+  "name": "lexical_senses_response",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "lexical_senses": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/lexicalSense"
+        }
+      },
+      "deferred": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/deferred"
+        }
+      },
+      "coverage": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/coverage"
+        }
+      }
+    },
+    "required": [
+      "lexical_senses",
+      "deferred",
+      "coverage"
+    ],
+    "additionalProperties": false,
+    "$defs": {
+      "lexicalSense": {
+        "type": "object",
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "3.0.0"
+          },
+          "lexical_item_it": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string",
+            "const": "it"
+          },
+          "part_of_speech": {
+            "type": "string",
+            "enum": [
+              "noun",
+              "verb",
+              "adjective",
+              "adverb",
+              "pronoun",
+              "determiner",
+              "preposition",
+              "conjunction",
+              "interjection",
+              "expression",
+              "other"
+            ]
+          },
+          "definition_it": {
+            "type": "string"
+          },
+          "definition_pl": {
+            "type": "string"
+          },
+          "glosses_pl": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "register": {
+                "type": "string",
+                "enum": [
+                  "neutral",
+                  "formal",
+                  "informal",
+                  "colloquial",
+                  "literary",
+                  "technical",
+                  "regional",
+                  "unknown"
+                ]
+              },
+              "patterns_it": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "collocations_it": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "constraints_pl": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "register",
+              "patterns_it",
+              "collocations_it",
+              "constraints_pl"
+            ],
+            "additionalProperties": false
+          },
+          "examples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/example"
+            }
+          },
+          "evidence": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "required": [
+          "schema_version",
+          "lexical_item_it",
+          "language",
+          "part_of_speech",
+          "definition_it",
+          "definition_pl",
+          "glosses_pl",
+          "usage",
+          "examples",
+          "evidence"
+        ],
+        "additionalProperties": false
+      },
+      "example": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "sentence_it": {
+                "type": "string"
+              },
+              "translation_pl": {
+                "type": "string"
+              },
+              "origin": {
+                "type": "string",
+                "const": "authored"
+              }
+            },
+            "required": [
+              "sentence_it",
+              "translation_pl",
+              "origin"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "sentence_it": {
+                "type": "string"
+              },
+              "translation_pl": {
+                "type": "string"
+              },
+              "origin": {
+                "type": "string",
+                "const": "attested"
+              },
+              "evidence_id": {
+                "type": "string",
+                "enum": [
+                  "e1",
+                  "e2",
+                  "e3"
+                ]
+              }
+            },
+            "required": [
+              "sentence_it",
+              "translation_pl",
+              "origin",
+              "evidence_id"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "evidence": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "e1": {
+                "$ref": "#/$defs/evidenceEntry"
+              }
+            },
+            "required": [
+              "e1"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "e1": {
+                "$ref": "#/$defs/evidenceEntry"
+              },
+              "e2": {
+                "$ref": "#/$defs/evidenceEntry"
+              }
+            },
+            "required": [
+              "e1",
+              "e2"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "e1": {
+                "$ref": "#/$defs/evidenceEntry"
+              },
+              "e2": {
+                "$ref": "#/$defs/evidenceEntry"
+              },
+              "e3": {
+                "$ref": "#/$defs/evidenceEntry"
+              }
+            },
+            "required": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "evidenceEntry": {
+        "type": "object",
+        "properties": {
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "lexical_database",
+              "dictionary",
+              "corpus",
+              "user_context",
+              "user_gloss",
+              "expert_review"
+            ]
+          },
+          "locator": {
+            "type": "string"
+          },
+          "supports": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "meaning",
+                "part_of_speech",
+                "pattern",
+                "register",
+                "constraint",
+                "example"
+              ]
+            }
+          }
+        },
+        "required": [
+          "source_type",
+          "locator",
+          "supports"
+        ],
+        "additionalProperties": false
+      },
+      "deferred": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "input_form_it": {
+                "type": "string"
+              },
+              "reason_code": {
+                "type": "string",
+                "enum": [
+                  "ambiguous_item",
+                  "insufficient_evidence",
+                  "not_found_in_sources",
+                  "source_rights"
+                ]
+              },
+              "needed_evidence_or_decision": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "input_form_it",
+              "reason_code",
+              "needed_evidence_or_decision"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "input_form_it": {
+                "type": "string"
+              },
+              "reason_code": {
+                "type": "string",
+                "enum": [
+                  "ambiguous_item",
+                  "insufficient_evidence",
+                  "not_found_in_sources",
+                  "source_rights"
+                ]
+              },
+              "needed_evidence_or_decision": {
+                "type": "string"
+              },
+              "lexical_item_it": {
+                "type": "string"
+              },
+              "part_of_speech": {
+                "type": "string",
+                "enum": [
+                  "noun",
+                  "verb",
+                  "adjective",
+                  "adverb",
+                  "pronoun",
+                  "determiner",
+                  "preposition",
+                  "conjunction",
+                  "interjection",
+                  "expression",
+                  "other"
+                ]
+              }
+            },
+            "required": [
+              "input_form_it",
+              "reason_code",
+              "needed_evidence_or_decision",
+              "lexical_item_it",
+              "part_of_speech"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "input_form_it": {
+                "type": "string"
+              },
+              "reason_code": {
+                "type": "string",
+                "enum": [
+                  "ambiguous_item",
+                  "insufficient_evidence",
+                  "not_found_in_sources",
+                  "source_rights"
+                ]
+              },
+              "needed_evidence_or_decision": {
+                "type": "string"
+              },
+              "candidate_label_pl": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "input_form_it",
+              "reason_code",
+              "needed_evidence_or_decision",
+              "candidate_label_pl"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "input_form_it": {
+                "type": "string"
+              },
+              "reason_code": {
+                "type": "string",
+                "enum": [
+                  "ambiguous_item",
+                  "insufficient_evidence",
+                  "not_found_in_sources",
+                  "source_rights"
+                ]
+              },
+              "needed_evidence_or_decision": {
+                "type": "string"
+              },
+              "lexical_item_it": {
+                "type": "string"
+              },
+              "part_of_speech": {
+                "type": "string",
+                "enum": [
+                  "noun",
+                  "verb",
+                  "adjective",
+                  "adverb",
+                  "pronoun",
+                  "determiner",
+                  "preposition",
+                  "conjunction",
+                  "interjection",
+                  "expression",
+                  "other"
+                ]
+              },
+              "candidate_label_pl": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "input_form_it",
+              "reason_code",
+              "needed_evidence_or_decision",
+              "lexical_item_it",
+              "part_of_speech",
+              "candidate_label_pl"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "input_form_it": {
+                "type": "string"
+              },
+              "reason_code": {
+                "type": "string",
+                "enum": [
+                  "ambiguous_item",
+                  "insufficient_evidence",
+                  "not_found_in_sources",
+                  "source_rights"
+                ]
+              },
+              "needed_evidence_or_decision": {
+                "type": "string"
+              },
+              "suggested_forms_it": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "input_form_it",
+              "reason_code",
+              "needed_evidence_or_decision",
+              "suggested_forms_it"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "input_form_it": {
+                "type": "string"
+              },
+              "reason_code": {
+                "type": "string",
+                "enum": [
+                  "ambiguous_item",
+                  "insufficient_evidence",
+                  "not_found_in_sources",
+                  "source_rights"
+                ]
+              },
+              "needed_evidence_or_decision": {
+                "type": "string"
+              },
+              "lexical_item_it": {
+                "type": "string"
+              },
+              "part_of_speech": {
+                "type": "string",
+                "enum": [
+                  "noun",
+                  "verb",
+                  "adjective",
+                  "adverb",
+                  "pronoun",
+                  "determiner",
+                  "preposition",
+                  "conjunction",
+                  "interjection",
+                  "expression",
+                  "other"
+                ]
+              },
+              "suggested_forms_it": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "input_form_it",
+              "reason_code",
+              "needed_evidence_or_decision",
+              "lexical_item_it",
+              "part_of_speech",
+              "suggested_forms_it"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "input_form_it": {
+                "type": "string"
+              },
+              "reason_code": {
+                "type": "string",
+                "enum": [
+                  "ambiguous_item",
+                  "insufficient_evidence",
+                  "not_found_in_sources",
+                  "source_rights"
+                ]
+              },
+              "needed_evidence_or_decision": {
+                "type": "string"
+              },
+              "candidate_label_pl": {
+                "type": "string"
+              },
+              "suggested_forms_it": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "input_form_it",
+              "reason_code",
+              "needed_evidence_or_decision",
+              "candidate_label_pl",
+              "suggested_forms_it"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "input_form_it": {
+                "type": "string"
+              },
+              "reason_code": {
+                "type": "string",
+                "enum": [
+                  "ambiguous_item",
+                  "insufficient_evidence",
+                  "not_found_in_sources",
+                  "source_rights"
+                ]
+              },
+              "needed_evidence_or_decision": {
+                "type": "string"
+              },
+              "lexical_item_it": {
+                "type": "string"
+              },
+              "part_of_speech": {
+                "type": "string",
+                "enum": [
+                  "noun",
+                  "verb",
+                  "adjective",
+                  "adverb",
+                  "pronoun",
+                  "determiner",
+                  "preposition",
+                  "conjunction",
+                  "interjection",
+                  "expression",
+                  "other"
+                ]
+              },
+              "candidate_label_pl": {
+                "type": "string"
+              },
+              "suggested_forms_it": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "input_form_it",
+              "reason_code",
+              "needed_evidence_or_decision",
+              "lexical_item_it",
+              "part_of_speech",
+              "candidate_label_pl",
+              "suggested_forms_it"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "coverage": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "lexical_item_it": {
+                "type": "string"
+              },
+              "part_of_speech": {
+                "type": "string",
+                "enum": [
+                  "noun",
+                  "verb",
+                  "adjective",
+                  "adverb",
+                  "pronoun",
+                  "determiner",
+                  "preposition",
+                  "conjunction",
+                  "interjection",
+                  "expression",
+                  "other"
+                ]
+              },
+              "selection_basis": {
+                "type": "string",
+                "enum": [
+                  "provided_context",
+                  "general_use"
+                ]
+              },
+              "notes_pl": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "lexical_item_it",
+              "part_of_speech",
+              "selection_basis",
+              "notes_pl"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "lexical_item_it": {
+                "type": "string"
+              },
+              "part_of_speech": {
+                "type": "string",
+                "enum": [
+                  "noun",
+                  "verb",
+                  "adjective",
+                  "adverb",
+                  "pronoun",
+                  "determiner",
+                  "preposition",
+                  "conjunction",
+                  "interjection",
+                  "expression",
+                  "other"
+                ]
+              },
+              "selection_basis": {
+                "type": "string",
+                "enum": [
+                  "provided_context",
+                  "general_use"
+                ]
+              },
+              "matched_input_form_it": {
+                "type": "string"
+              },
+              "notes_pl": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "lexical_item_it",
+              "part_of_speech",
+              "selection_basis",
+              "matched_input_form_it",
+              "notes_pl"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "input_form_it": {
+                "type": "string"
+              },
+              "selection_basis": {
+                "type": "string",
+                "const": "unresolved_input"
+              },
+              "notes_pl": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "input_form_it",
+              "selection_basis",
+              "notes_pl"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  }
+}

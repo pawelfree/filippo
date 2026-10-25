@@ -6,7 +6,6 @@
   "additionalProperties": false,
   "required": [
     "schema_version",
-    "lexical_sense_id",
     "lexical_item_it",
     "language",
     "part_of_speech",
@@ -18,11 +17,7 @@
     "evidence"
   ],
   "properties": {
-    "schema_version": { "const": "2.0.0" },
-    "lexical_sense_id": {
-      "$ref": "#/$defs/id",
-      "description": "Stable identifier of this meaning, retained after editorial corrections."
-    },
+    "schema_version": { "const": "3.0.0" },
     "lexical_item_it": {
       "$ref": "#/$defs/text",
       "description": "Italian word or phrase described by this sense, written in its dictionary form (lemma or fixed phrase). This value is stored here, not referenced through a separate item record."
@@ -110,6 +105,7 @@
     "evidence": {
       "type": "object",
       "minProperties": 1,
+      "maxProperties": 3,
       "propertyNames": { "$ref": "#/$defs/id" },
       "additionalProperties": {
         "type": "object",

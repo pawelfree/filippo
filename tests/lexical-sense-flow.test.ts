@@ -79,7 +79,7 @@ test('user reviews existing senses, corrects a generated sense, and saves only t
     dom = new JSDOM(html, { url: `${base}/lexical-senses.html`, runScripts: 'outside-only' });
     const { window } = dom;
     window.fetch = ((path: string, options?: RequestInit) => fetch(new URL(path, base), options)) as typeof window.fetch;
-    window.eval(await readFile(join(process.cwd(), 'public', 'lexical-senses.js'), 'utf8'));
+    window.eval(await readFile(join(process.cwd(), 'dist', 'browser', 'lexical-senses.js'), 'utf8'));
     const doc = window.document;
     const input = doc.querySelector<HTMLInputElement>('[data-item-input]');
     assert.ok(input);

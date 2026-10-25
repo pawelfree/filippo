@@ -1,3 +1,4 @@
+(() => {
 const ui = {
   browser: document.getElementById('profile-browser'),
   error: document.getElementById('error'),
@@ -8,7 +9,7 @@ const ui = {
   categories: document.getElementById('categories'),
   competencies: document.getElementById('competencies'),
   detail: document.getElementById('detail'),
-  search: document.getElementById('search'),
+  search: document.getElementById('search') as HTMLInputElement,
   categoryCount: document.getElementById('category-count'),
   competencyCount: document.getElementById('competency-count'),
 };
@@ -39,7 +40,7 @@ const sourceNames = {
   manual: 'ocena ręczna',
 };
 
-function el(tag, className, text) {
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text?: string): HTMLElementTagNameMap[K] {
   const element = document.createElement(tag);
   if (className) element.className = className;
   if (text !== undefined) element.textContent = text;
@@ -311,3 +312,5 @@ async function start() {
 }
 
 start();
+
+})();

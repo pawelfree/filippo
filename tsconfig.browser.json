@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "module": "None",
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "rootDir": "src/browser",
+    "outDir": "dist/browser",
+    "strict": false,
+    "skipLibCheck": true
+  },
+  "include": ["src/browser/*.ts"]
+}

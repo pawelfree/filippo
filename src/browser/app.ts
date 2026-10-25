@@ -1,3 +1,4 @@
+(() => {
 const elements = {
   browser: document.getElementById('browser'),
   error: document.getElementById('error'),
@@ -5,7 +6,7 @@ const elements = {
   categories: document.getElementById('categories'),
   list: document.getElementById('list'),
   detail: document.getElementById('detail'),
-  search: document.getElementById('search'),
+  search: document.getElementById('search') as HTMLInputElement,
   categoryCount: document.getElementById('category-count'),
   variantCount: document.getElementById('variant-count'),
 };
@@ -16,7 +17,7 @@ let selectedVariantId;
 let variantsById;
 let constructionsById;
 
-function node(tag, className, value) {
+function node<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', value?: string): HTMLElementTagNameMap[K] {
   const element = document.createElement(tag);
   if (className) element.className = className;
   if (value !== undefined) element.textContent = value;
@@ -183,3 +184,5 @@ async function start() {
 }
 
 start();
+
+})();

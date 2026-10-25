@@ -1,9 +1,10 @@
+(() => {
 const ui = {
-  items: document.getElementById('items'), add: document.getElementById('add-item'), check: document.getElementById('check-items'),
+  items: document.getElementById('items'), add: document.getElementById('add-item') as HTMLButtonElement, check: document.getElementById('check-items') as HTMLButtonElement,
   existingSection: document.getElementById('existing-section'), existing: document.getElementById('existing-list'),
-  generate: document.getElementById('generate-senses'), proposalsSection: document.getElementById('proposal-section'),
+  generate: document.getElementById('generate-senses') as HTMLButtonElement, proposalsSection: document.getElementById('proposal-section'),
   proposals: document.getElementById('proposal-list'), deferred: document.getElementById('deferred-list'),
-  coverage: document.getElementById('coverage-list'), save: document.getElementById('save-senses'),
+  coverage: document.getElementById('coverage-list'), save: document.getElementById('save-senses') as HTMLButtonElement,
   saveResult: document.getElementById('save-result'), status: document.getElementById('status'), error: document.getElementById('error'),
 };
 
@@ -13,7 +14,7 @@ let draft = null;
 let busy = false;
 let revision = 0;
 
-function element(tag, className, label) {
+function element<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', label?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
   if (className) node.className = className;
   if (label !== undefined) node.textContent = label;
@@ -26,9 +27,9 @@ function updateButtons() {
   ui.check.disabled = busy;
   ui.add.disabled = busy;
   ui.generate.disabled = busy || !checkId;
-  const selectedCards = [...ui.proposals.querySelectorAll('[data-sense-card]')].filter((card) => card.querySelector('[data-select-sense]').checked);
+  const selectedCards = [...ui.proposals.querySelectorAll('[data-sense-card]')].filter((card) => card.querySelector<HTMLInputElement>('[data-select-sense]').checked);
   ui.save.disabled = busy || !draft || !selectedCards.length || selectedCards.some((card) => {
-    const confirm = card.querySelector('[data-confirm-distinct]');
+    const confirm = card.querySelector<HTMLInputElement>('[data-confirm-distinct]');
     return confirm && !confirm.checked;
   });
 }
@@ -61,7 +62,7 @@ function addItem(value = '') {
   return input;
 }
 function items() {
-  const values = [...ui.items.querySelectorAll('[data-item-input]')].map((input) => input.value.trim().replace(/\s+/g, ' ')).filter(Boolean);
+  const values = [...ui.items.querySelectorAll<HTMLInputElement>('[data-item-input]')].map((input) => input.value.trim().replace(/\s+/g, ' ')).filter(Boolean);
   if (!values.length) throw new Error('Wpisz co najmniej jedno włoskie słowo lub wyrażenie.');
   if (new Set(values.map((value) => value.toLocaleLowerCase('it'))).size !== values.length) throw new Error('Usuń powtórzone pozycje z listy.');
   return values;
@@ -104,7 +105,7 @@ function renderProposals(result) {
     for (const example of sense.examples) card.append(element('p', 'example', `${example.sentence_it} — ${example.translation_pl}`));
     const evidence = element('details');
     evidence.append(element('summary', '', 'Sprawdzone źródła'));
-    for (const source of Object.values(sense.evidence)) evidence.append(element('p', 'hint', `${source.source_type}: ${source.locator}`));
+    for (const source of Object.values(sense.evidence) as Array<{ source_type: string; locator: string }>) evidence.append(element('p', 'hint', `${source.source_type}: ${source.locator}`));
     card.append(evidence);
     const matches = result.matches[index] || [];
     if (matches.length) {
@@ -194,8 +195,8 @@ ui.generate.addEventListener('click', async () => {
 ui.save.addEventListener('click', async () => {
   if (busy || !draft) return;
   const selected = [...ui.proposals.querySelectorAll('[data-sense-card]')].flatMap((card, index) => {
-    if (!card.querySelector('[data-select-sense]').checked) return [];
-    return [{ index, definition_pl: card.querySelector('[data-definition-pl]').value.trim(), confirmedDistinct: !!card.querySelector('[data-confirm-distinct]')?.checked }];
+    if (!card.querySelector<HTMLInputElement>('[data-select-sense]').checked) return [];
+    return [{ index, definition_pl: card.querySelector<HTMLTextAreaElement>('[data-definition-pl]').value.trim(), confirmedDistinct: !!card.querySelector<HTMLInputElement>('[data-confirm-distinct]')?.checked }];
   });
   if (selected.some((item) => !item.definition_pl)) { setError('Uzupełnij polskie objaśnienia wybranych znaczeń.'); return; }
   try {
@@ -226,3 +227,5 @@ ui.save.addEventListener('click', async () => {
   finally { busy = false; updateButtons(); }
 });
 addItem();
+
+})();

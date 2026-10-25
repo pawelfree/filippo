@@ -10,7 +10,10 @@ import { LexicalSensesController } from './lexical-senses/lexical-senses.control
 import { LexicalSensesService } from './lexical-senses/lexical-senses.service';
 
 @Module({
-  imports: [DatabaseModule, ServeStaticModule.forRoot({ rootPath: join(process.cwd(), 'public') })],
+  imports: [DatabaseModule, ServeStaticModule.forRoot(
+    { rootPath: join(process.cwd(), 'dist', 'browser'), serveRoot: '/assets' },
+    { rootPath: join(process.cwd(), 'public') },
+  )],
   controllers: [TaxonomyController, ProfileController, LexicalSensesController],
   providers: [TaxonomyService, ProfileService, LexicalSensesService],
 })

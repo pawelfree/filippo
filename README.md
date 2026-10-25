@@ -47,3 +47,5 @@ Propozycje i identyfikatory weryfikacji są przechowywane w pamięci serwera prz
 - `npm test`
 - `npm run build`
 - `npm start` (po zbudowaniu)
+
+Kod przeglądarki jest w `src/browser/*.ts`. `npm run build` kompiluje go do `dist/browser/*.js`, a Nest udostępnia wynik pod `/assets/`. `npm run start:dev` kompiluje skrypty przy starcie; po zmianie kodu przeglądarki uruchom to polecenie ponownie.

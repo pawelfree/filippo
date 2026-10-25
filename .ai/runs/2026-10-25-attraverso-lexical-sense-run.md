@@ -12,3 +12,5 @@
 - Outcome: [input fixture](../docs/lexical_sense/examples/attraverso.input.json) and [result JSON](../docs/lexical_sense/examples/attraverso.result.json) contain two complete preposition senses plus explicit adverb and verb-form deferrals.
 
 Follow-up on 2026-10-25: the [deferred review](2026-10-25-attraverso-deferred-review.md) corrected the output. The linked JSON now contains three complete senses and no deferred candidates; the outcome above records the original run.
+
+Further updates on 2026-10-25 added two `attraversare` verb senses, bringing the linked result to five. The linked fixtures were then converted to schema 2.0.0 with `lexical_item_it` in each sense and no parent item IDs; see the [model correction](2026-10-25-inline-lexical-item.md). Earlier counts and parent IDs above describe historical stages.

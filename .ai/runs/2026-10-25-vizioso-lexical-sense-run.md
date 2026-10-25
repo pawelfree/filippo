@@ -10,3 +10,5 @@
 - Decisions: separate adjective and noun LexicalItems; output two adjective senses and one noun sense in a trial namespace.
 - Unresolved issues: no production item IDs or repository exist yet; trial IDs must not be imported without deduplication.
 - Outcome: [input fixture](../docs/lexical_sense/examples/vizioso.input.json) and [result JSON](../docs/lexical_sense/examples/vizioso.result.json) contain a complete trial run with three sense records and no deferred candidates.
+
+Model update on 2026-10-25: the linked fixtures were converted to `LexicalSense` schema 2.0.0 with `lexical_item_it` stored in each sense. Parent item IDs described above record the original trial design and are no longer present in the linked files; see the [model correction](2026-10-25-inline-lexical-item.md).

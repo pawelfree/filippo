@@ -13,7 +13,7 @@ Dokument jest listą prac i decyzji do domknięcia, a nie nową specyfikacją ju
 ## 2. Ustalenia, których nie należy projektować od nowa
 
 1. Aplikacja służy **jednemu użytkownikowi**.
-2. Jednostkami leksykalnymi są m.in. **LexicalItem** i **LexicalSense**. Należy zachować rozróżnienie formy/jednostki od jej znaczenia.
+2. **LexicalSense** jest zapisywanym znaczeniem. Każdy rekord zawiera bezpośrednio włoskie słowo lub frazę w `lexical_item_it`; nie wymaga osobnego rekordu `LexicalItem`. Formę występującą w zdaniu należy odróżniać od postaci hasłowej zapisanej w znaczeniu.
 3. **FSRS** działa na poziomie jednostki leksykalnej/znaczenia zgodnie z przyjętym wcześniej modelem, a nie pojedynczego zdania, wygenerowanego ćwiczenia ani luki. Schemat ćwiczenia wiąże całe ćwiczenie i wszystkie jego luki z jednym `LexicalSense`; szczegóły zdarzenia FSRS pozostają w pracach P0.4.
 4. Ćwiczenia generuje AI **przed prezentacją użytkownikowi** i zapisuje do bazy. Nie generuje się ich na żądanie przy sprawdzaniu odpowiedzi.
 5. Użytkownik otrzymuje **paczki po 20 ćwiczeń**. W ich skład wchodzą ćwiczenia dla jednostek wymagających powtórki według FSRS oraz nowe ćwiczenia, których jeszcze nie prezentowano. Nie należy przyjmować nieustalonej sztywnej proporcji tych dwóch źródeł.
@@ -33,7 +33,7 @@ Dokument jest listą prac i decyzji do domknięcia, a nie nową specyfikacją ju
 | `evaluation_rules.md` | Przeredagowane jako instrukcja wejście → diagnoza → JSON dla agenta | Zgodność końcowego kontraktu ze skryptem i zestawem testów |
 | `profile_update.md` | Przygotowany algorytm aktualizacji profilu | Audyt zgodności z `profile.schema.json` 2.0.0, `evaluation_rules.md` i kontraktem zdarzeń |
 | `evaluation_config.json` | Plik konfiguracji parametrów modelu istnieje | Weryfikacja zakresów parametrów i decyzja, gdzie walidować konfigurację |
-| LexicalItem / LexicalSense | Model pojęciowy ustalony | Czy kompletne schematy, import i deduplikacja są już opisane |
+| LexicalSense i zapis słowa/frazy | Istnieją `lexicalsense.schema.json` i `creation.rules.md`; słowo lub fraza jest polem znaczenia | Kontrakt dodawania/importu, deduplikacja i status gotowości znaczeń; bez osobnego rekordu `LexicalItem` |
 | FSRS | Jednostka harmonogramowania i rozdzielenie od ćwiczeń ustalone | Kontrakt zdarzeń i operacje konkretnej implementacji |
 
 **Zasada kontroli zakresu:** nie należy pisać nowych dokumentów, jeśli odpowiednia część istniejącej dokumentacji już realizuje dany kontrakt; wtedy wystarczy audyt i ewentualna korekta.
@@ -42,24 +42,24 @@ Dokument jest listą prac i decyzji do domknięcia, a nie nową specyfikacją ju
 
 **P0 — konieczne do działania pełnego cyklu; P1 — konieczne do adaptacji i niezawodności; P2 — rozwój i doskonalenie.**
 
-### P0.1. Repozytorium jednostek leksykalnych i dodawanie słów/fraz
+### P0.1. Repozytorium znaczeń i dodawanie słów/fraz
 
 **Cel:** użytkownik może doprowadzić nowy materiał leksykalny do stanu umożliwiającego generowanie ćwiczeń.
 
 **Prace:**
 
-- Zweryfikować/ukończyć schematy `LexicalItem`, `LexicalSense` oraz ich identyfikatory i relacje.
+- Zweryfikować `lexicalsense.schema.json`: każde znaczenie ma własny `lexical_sense_id`, a słowo lub fraza jest zapisana bezpośrednio w `lexical_item_it`. Nie tworzyć osobnego rekordu ani identyfikatora `LexicalItem`.
 - Określić operacje: dodanie pojedynczego słowa/frazy, dodanie wielu pozycji, import, podgląd, poprawa, odrzucenie, połączenie duplikatów.
 - Zdefiniować rolę AI w lematyzacji, rozpoznaniu jednostek wielowyrazowych, identyfikacji znaczeń, części mowy, rejestru i ograniczeń użycia.
 - Określić, jak rozdzielać różne znaczenia jednego wyrazu oraz jak traktować synonimy, warianty zapisu i formy fleksyjne.
-- Ustalić wymaganą minimalną kompletność danych przed dopuszczeniem jednostki do generowania.
+- Ustalić wymaganą minimalną kompletność danych przed dopuszczeniem znaczenia do generowania.
 - Zdefiniować deduplikację: klucz/strategia wyszukania kandydata, rozstrzyganie homonimii i polisemii, scalanie bez gubienia powiązań.
-- Ustalić źródło i status danych: proponowane, zweryfikowane, gotowe do nauki, zablokowane (nazwy statusów do uzgodnienia z istniejącymi schematami).
-- Ustalić powiązanie importowanych jednostek z użytkownikiem, kolejką nowych pozycji i ewentualnym stanem FSRS.
+- Ustalić źródło i status danych znaczenia: proponowane, zweryfikowane, gotowe do nauki, zablokowane (nazwy statusów do uzgodnienia z istniejącymi schematami).
+- Ustalić powiązanie importowanych znaczeń z użytkownikiem, kolejką nowych pozycji i ewentualnym stanem FSRS.
 
-**Rezultat:** kontrakt dodawania/importu i model repozytorium leksykalnego; w razie braku istniejących dokumentów: `lexical_repository.md`, `lexical_import_rules.md` i odpowiednie schematy JSON.
+**Rezultat:** kontrakt dodawania/importu i zapis znaczeń zgodny z `lexicalsense.schema.json` oraz `creation.rules.md`, z określonymi zasadami deduplikacji i gotowości. Uzupełnić istniejące materiały; osobny rekord, identyfikator, schemat ani dokument repozytorium `LexicalItem` nie są wymagane.
 
-**Kryterium ukończenia:** dodanie frazy lub słowa o kilku znaczeniach tworzy prawidłowe jednostki, ponowny import nie generuje niekontrolowanych duplikatów, a jednostka ma jednoznaczny status gotowości do generowania.
+**Kryterium ukończenia:** dodanie frazy lub słowa o kilku znaczeniach tworzy prawidłowe rekordy `LexicalSense`, ponowny import nie generuje niekontrolowanych duplikatów, a każde znaczenie ma jednoznaczny status gotowości do generowania.
 
 ### P0.2. Kanoniczny model ćwiczenia
 
@@ -236,7 +236,7 @@ Dokument jest listą prac i decyzji do domknięcia, a nie nową specyfikacją ju
 **Prace:**
 
 - Zweryfikować spójność identyfikatorów i referencji: jednostka → znaczenie → ćwiczenie → prezentacja → obserwacja → stan nauki.
-- Zdefiniować procedury korekty lub scalenia `LexicalItem`/`LexicalSense` przy istniejącym FSRS.
+- Zdefiniować procedury korekty lub scalenia rekordów `LexicalSense` przy istniejącym FSRS.
 - Zdefiniować skutki zmiany taksonomii i schematu profilu; nie zakładać automatycznego przeniesienia ocen między innymi wariantami.
 - Ustalić zachowanie starych ćwiczeń i raportów powiązanych ze starszą wersją taksonomii.
 - Przyjąć reguły transakcji, niezmienności zdarzeń, backupu i odtwarzania.
@@ -265,7 +265,7 @@ Dokument jest listą prac i decyzji do domknięcia, a nie nową specyfikacją ju
 
 | Etap | Co domknąć | Od czego zależy | Wynik |
 |---|---|---|---|
-| 1 | Model `LexicalItem` / `LexicalSense`, dodawanie i import | Istniejący model pojęciowy | Jednostki gotowe do nauki |
+| 1 | Model `LexicalSense` ze słowem lub frazą, dodawanie i import | Istniejący model pojęciowy | Znaczenia gotowe do nauki |
 | 2 | Kanoniczny model ćwiczenia | Etap 1, taksonomia | Kompletny kontrakt zadania |
 | 3 | Generowanie, walidacja i repozytorium | Etapy 1–2, `generation_rules.md` | Ćwiczenia w bazie |
 | 4 | Integracja FSRS | Etap 1, definicja zdarzeń | Harmonogram jednostek |
@@ -317,7 +317,7 @@ Projekt merytoryczny pełnego cyklu jest domknięty, jeżeli:
 
 ## 8. Najbliższe decyzje i działania
 
-**Najpierw:** (1) sprawdzić dostępność i kompletność schematów `LexicalItem`/`LexicalSense`, (2) zamknąć proces dodawania słów/fraz, (3) zweryfikować model ćwiczenia wraz z `success_checks_by_answer_key`. Równolegle można przeprowadzić audyt zgodności przygotowanego `profile_update.md` z kontraktem agenta.
+**Najpierw:** (1) zweryfikować `lexicalsense.schema.json` i `creation.rules.md` z bezpośrednim zapisem słowa lub frazy w znaczeniu, (2) zamknąć proces dodawania słów/fraz, (3) zweryfikować model ćwiczenia wraz z `success_checks_by_answer_key`. Równolegle można przeprowadzić audyt zgodności przygotowanego `profile_update.md` z kontraktem agenta.
 
 **Następnie:** zamknąć FSRS i dobór paczek po 20; wykonać pełny test od nowej jednostki do pierwszej powtórki.
 

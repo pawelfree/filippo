@@ -21,9 +21,9 @@ Aplikacja obejmuje także pozyskiwanie i porządkowanie słownictwa, ocenianie o
 
 ## 2. Model pojęciowy słownictwa
 
-### 2.1. LexicalItem — jednostka leksykalna
+### 2.1. Słowo lub fraza w `LexicalSense`
 
-**LexicalItem** jest rozpoznawalną jednostką słownika, do której można przypisać jedno lub więcej znaczeń.
+Słowo lub fraza jest rozpoznawalną jednostką słownictwa, która może mieć jedno lub więcej znaczeń. Jej postać hasłowa jest zapisana bezpośrednio jako `lexical_item_it` w każdym rekordzie `LexicalSense`; nie tworzy się dla niej osobnego rekordu ani identyfikatora.
 
 Może nią być pojedynczy leksem, wyrażenie wielowyrazowe, czasownik z przyimkiem, utrwalony zwrot albo idiom. Jej granicę wyznacza to, czy użytkownik ma nauczyć się traktować całość jako jednostkę o własnej formie i zachowaniu, a nie wyłącznie jako przypadkową sumę sąsiadujących słów.
 
@@ -37,23 +37,23 @@ Przykłady:
 
 Zapis widoczny w konkretnym zdaniu jest **wystąpieniem formy** jednostki.
 
-`vado`, `andavo` i `andrei` są formami powiązanymi z `andare`, lecz nie muszą stanowić trzech osobnych LexicalItem.
+`vado`, `andavo` i `andrei` są formami `andare`, więc samo ich wystąpienie nie tworzy trzech odrębnych znaczeń.
 
 Rozróżnienie form ma znaczenie przy analizie odpowiedzi: niepoprawne użycie `andrei` może wskazywać problem z trybem warunkowym, mimo że użytkownik zna znaczenie czasownika `andare`.
 
 ### 2.2. LexicalSense — konkretne znaczenie lub użycie
 
-**LexicalSense** oznacza jedno rozróżnialne znaczenie lub użycie LexicalItem, uwzględniające kontekst, typowe połączenia i ograniczenia zastosowania.
+**LexicalSense** oznacza jedno rozróżnialne znaczenie lub użycie słowa albo frazy, uwzględniające kontekst, typowe połączenia i ograniczenia zastosowania.
 
-Jeden LexicalItem może mieć wiele LexicalSense.
+To samo `lexical_item_it` może wystąpić w wielu rekordach `LexicalSense`; każdy ma własny `lexical_sense_id`.
 
 Sam fakt rozpoznania formy wyrazu nie dowodzi znajomości wszystkich jego znaczeń.
 
-Przykładowo `prendere una decisione` jest osobnym LexicalItem względem `prendere`, natomiast „podjąć decyzję” stanowi jego LexicalSense.
+Przykładowo znaczenie „podjąć decyzję” ma w `lexical_item_it` całą frazę `prendere una decisione`, odrębną od słowa `prendere`.
 
 Poprawne zastosowanie samego czasownika `prendere` nie dowodzi opanowania wyrażenia `prendere una decisione`.
 
-Podobnie `prendere il treno` może być osobnym LexicalItem, jeżeli zostało wyodrębnione jako jednostka przeznaczona do nauki.
+Podobnie `prendere il treno` może zostać zapisane jako cała fraza w osobnym `LexicalSense`, jeżeli ma być uczone jako wyrażenie.
 
 LexicalSense może wiązać się z charakterystyczną konstrukcją gramatyczną, ale nie jest z nią tożsamy.
 
@@ -63,7 +63,7 @@ Znaczenie `avere bisogno di` obejmuje potrzebę, natomiast wymaganie przyimka `d
 
 | Pojęcie             | Znaczenie                              | Przykład                        |
 | ------------------- | -------------------------------------- | ------------------------------- |
-| LexicalItem         | Jednostka słownika                     | `prendere una decisione`        |
+| `lexical_item_it`   | Słowo lub fraza wpisana w znaczeniu    | `prendere una decisione`        |
 | LexicalSense        | Konkretne znaczenie jednostki          | „podjąć decyzję”                |
 | Forma               | Realizacja morfologiczna jednostki     | `prendo`                        |
 | Wystąpienie         | Forma w konkretnym kontekście          | `prendo` w określonym zdaniu    |
@@ -71,7 +71,7 @@ Znaczenie `avere bisogno di` obejmuje potrzebę, natomiast wymaganie przyimka `d
 | Ćwiczenie           | Konkretne zadanie z lukami             | uzupełnienie wyrażenia w zdaniu |
 | Jednostka FSRS      | To, czego pamięć jest harmonogramowana | LexicalSense                    |
 
-Relacja między LexicalItem a LexicalSense jest zasadniczo relacją „jedna jednostka — wiele znaczeń”.
+Jedno słowo lub fraza może mieć wiele zapisanych znaczeń, ale powtórzenie tej samej postaci hasłowej nie tworzy osobnego obiektu nadrzędnego.
 
 Jedno znaczenie może być ćwiczone w wielu różnych zdaniach. Wszystkie te ćwiczenia odnoszą się do tego samego LexicalSense i jego stanu FSRS.
 
@@ -85,18 +85,18 @@ Użytkownik może dodawać do bazy pojedyncze słowa, wyrażenia oraz większe z
 
 Materiał może pochodzić z ręcznego wprowadzania, importowanych list lub tekstów, z których identyfikowane są jednostki potencjalnie przydatne do nauki.
 
-Przed wykorzystaniem materiału należy rozpoznać właściwe LexicalItem oraz odpowiadające im LexicalSense.
+Przed wykorzystaniem materiału należy rozpoznać właściwą postać hasłową oraz odpowiadające jej `LexicalSense`.
 
 AI wspiera ten proces poprzez identyfikowanie podstawowej postaci jednostki, wyodrębnianie znaczeń, rozpoznawanie wyrażeń wielowyrazowych, określanie części mowy, charakterystycznej łączliwości, ograniczeń użycia i kontekstów znaczeniowych.
 
 Dla znaczeń można przechowywać polskie odpowiedniki, definicje, przykłady i informacje niezbędne do prawidłowego generowania ćwiczeń.
 
-Przed dodaniem jednostki należy sprawdzić, czy nie występuje ona już w bazie.
+Przed dodaniem znaczenia należy sprawdzić, czy nie występuje ono już w bazie.
 
 Deduplikacja musi odróżniać:
 
 - ponowne dodanie istniejącego LexicalSense;
-- nowe znaczenie istniejącego LexicalItem;
+- nowe znaczenie słowa lub frazy już występujących w innych rekordach;
 - wariant zapisu tej samej jednostki;
 - inne wyrażenie złożone z podobnych słów;
 - jednostki podobne formalnie, ale różne znaczeniowo.
@@ -126,7 +126,7 @@ Luki obejmują ćwiczone wyrażenie w postaci wynikającej z kontekstu, także w
 
 Użytkownik dobiera również odpowiednią odmianę wynikającą z czasu, trybu, liczby, rodzaju i innych właściwości zdania.
 
-Ćwiczenie nie jest tożsame ani z LexicalItem, ani z LexicalSense, ani z wariantem gramatycznym.
+Ćwiczenie nie jest tożsame ani ze słowem lub frazą, ani z `LexicalSense`, ani z wariantem gramatycznym.
 
 **Stan FSRS należy do LexicalSense**, a nie do treści zadania.
 
@@ -407,7 +407,7 @@ Wycofanie ćwiczenia nie oznacza usunięcia jednostki leksykalnej ani jej stanu 
 
 Użytkownik dodaje słowa i wyrażenia do bazy.
 
-Materiał zostaje przeanalizowany, znormalizowany i przypisany do odpowiednich LexicalItem oraz LexicalSense.
+Materiał zostaje przeanalizowany i znormalizowany; powstają odpowiednie rekordy `LexicalSense` ze słowem lub frazą zapisanymi w każdym z nich.
 
 Znaczenia gotowe do nauki są dostępne do wykorzystania podczas generowania ćwiczeń.
 
@@ -571,7 +571,7 @@ Powiązanie profilu z taksonomią musi zapewniać jednoznaczną interpretację o
 
 Aplikacja działa zgodnie z założeniami, gdy użytkownik może dodawać słowa i wyrażenia, wybierać konkretne znaczenia do nauki oraz ćwiczyć je poprzez samodzielne uzupełnianie włoskich zdań.
 
-System odróżnia LexicalItem od jego poszczególnych LexicalSense, a FSRS planuje powtórki właśnie na poziomie znaczeń.
+System odróżnia słowo lub frazę od poszczególnych `LexicalSense`, a FSRS planuje powtórki właśnie na poziomie znaczeń.
 
 Ćwiczenia są generowane przez AI, zapisywane w bazie i udostępniane użytkownikowi w paczkach, z rozróżnieniem zadań nowych i powtórkowych.
 

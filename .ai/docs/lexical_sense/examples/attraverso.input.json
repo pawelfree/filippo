@@ -2,18 +2,15 @@
   "original_input": "attraverso",
   "items": [
     {
-      "lexical_item_id": "li-demo-attraverso-prep",
-      "canonical_form_it": "attraverso",
+      "lexical_item_it": "attraverso",
       "part_of_speech": "preposition"
     },
     {
-      "lexical_item_id": "li-demo-attraverso-adv",
-      "canonical_form_it": "attraverso",
+      "lexical_item_it": "attraverso",
       "part_of_speech": "adverb"
     },
     {
-      "lexical_item_id": "li-demo-attraversare-verb",
-      "canonical_form_it": "attraversare",
+      "lexical_item_it": "attraversare",
       "input_form_it": "attraverso",
       "part_of_speech": "verb"
     }

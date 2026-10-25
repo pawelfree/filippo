@@ -19,3 +19,5 @@ Wykonać [reguły tworzenia](../docs/lexical_sense/creation.rules.md) dla trzech
 - Walidacja lokalnym Ajv Draft 2020-12: siedem rekordów `LexicalSense` zgodnych ze schematem, identyfikatory unikalne; jedno odroczenie i trzy wpisy pokrycia.
 - Wynik: trzy znaczenia `distinzione`, cztery `mantenere`; `systema` odroczono z propozycją `sistema`.
 - Wcześniejsze przykłady nie stanowią produkcyjnego katalogu. Użyte identyfikatory `li-demo-*` i `ls-demo-*` odnoszą się do zapisanych artefaktów demonstracyjnych; przed importem do katalogu trzeba rozstrzygnąć odpowiednie identyfikatory produkcyjne oraz deduplikację.
+
+Aktualizacja modelu z 2026-10-25: powiązane pliki przeniesiono na schemat 2.0.0. Każdy sens zawiera teraz `lexical_item_it`; identyfikatory `li-demo-*` opisują stan pierwotnego przebiegu i nie występują już w plikach. Identyfikatory `ls-demo-*` pozostały.

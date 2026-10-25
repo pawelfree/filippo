@@ -1,18 +1,22 @@
 {
-  "original_inputs": ["distinzione", "mantenere", "systema"],
+  "original_inputs": [
+    "distinzione",
+    "mantenere",
+    "systema"
+  ],
   "items": [
     {
-      "lexical_item_id": "li-demo-distinzione-noun",
-      "canonical_form_it": "distinzione",
+      "lexical_item_it": "distinzione",
       "part_of_speech": "noun"
     },
     {
-      "lexical_item_id": "li-demo-mantenere-verb",
-      "canonical_form_it": "mantenere",
+      "lexical_item_it": "mantenere",
       "part_of_speech": "verb"
     }
   ],
-  "unresolved_inputs": ["systema"],
+  "unresolved_inputs": [
+    "systema"
+  ],
   "existing_lexical_senses": [],
   "source_policy": "Use Wikimedia sources as cited references. Write independent definitions and examples without copying source text."
 }

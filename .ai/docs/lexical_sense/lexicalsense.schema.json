@@ -1,14 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "LexicalSense",
-  "description": "One documented Italian meaning or use of one LexicalItem for a Polish-speaking learner. The record contains lexical data only, not exercises or learning state.",
+  "description": "One documented meaning or use of an Italian word or phrase for a Polish-speaking learner. The word or phrase is stored directly in this record; no separate LexicalItem record is required.",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schema_version",
     "lexical_sense_id",
-    "lexical_item_id",
-    "canonical_form_it",
+    "lexical_item_it",
     "language",
     "part_of_speech",
     "definition_it",
@@ -19,18 +18,14 @@
     "evidence"
   ],
   "properties": {
-    "schema_version": { "const": "1.0.0" },
+    "schema_version": { "const": "2.0.0" },
     "lexical_sense_id": {
       "$ref": "#/$defs/id",
       "description": "Stable identifier of this meaning, retained after editorial corrections."
     },
-    "lexical_item_id": {
-      "$ref": "#/$defs/id",
-      "description": "Identifier of the one parent LexicalItem."
-    },
-    "canonical_form_it": {
+    "lexical_item_it": {
       "$ref": "#/$defs/text",
-      "description": "Snapshot of the parent item's canonical written form; must match the referenced LexicalItem."
+      "description": "Italian word or phrase described by this sense, written in its dictionary form (lemma or fixed phrase). This value is stored here, not referenced through a separate item record."
     },
     "language": { "const": "it" },
     "part_of_speech": {
@@ -38,11 +33,11 @@
         "noun", "verb", "adjective", "adverb", "pronoun", "determiner",
         "preposition", "conjunction", "interjection", "expression", "other"
       ],
-      "description": "Grammatical role of the whole LexicalItem in this use; expression covers idioms or formulas without one useful word class."
+      "description": "Grammatical role of the word or phrase in this use; expression covers idioms or formulas without one useful word class."
     },
     "definition_it": {
       "$ref": "#/$defs/text",
-      "description": "Short Italian paraphrase that distinguishes this meaning from other meanings of the same item."
+      "description": "Short Italian paraphrase that distinguishes this meaning from other meanings of the same word or phrase."
     },
     "definition_pl": {
       "$ref": "#/$defs/text",

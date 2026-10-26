@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -30,10 +30,16 @@ test('user reviews existing senses, corrects a generated sense, and saves only t
   process.env.DATABASE_URL = databaseUrl;
   process.env.OPENAI_API_KEY = 'test-key';
   process.env.OPENAI_MODEL = 'test-model';
-  const push = spawnSync('node_modules/.bin/prisma', ['migrate', 'deploy'], {
-    cwd: process.cwd(), env: { ...process.env, DATABASE_URL: databaseUrl }, encoding: 'utf8',
-  });
-  assert.equal(push.status, 0, push.stderr || push.stdout);
+  const migrationsRoot = join(process.cwd(), 'prisma', 'migrations');
+  const migrations = (await readdir(migrationsRoot, { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+  for (const migration of migrations) {
+    const sql = await readFile(join(migrationsRoot, migration, 'migration.sql'), 'utf8');
+    const apply = spawnSync('sqlite3', [join(directory, 'test.db')], { input: sql, encoding: 'utf8' });
+    assert.equal(apply.status, 0, apply.stderr || apply.stdout);
+  }
 
   const { PrismaClient } = await import('@prisma/client');
   const prisma = new PrismaClient();

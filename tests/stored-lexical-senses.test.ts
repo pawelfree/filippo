@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { JSDOM } from 'jsdom';
 import { LexicalSensesService } from '../src/lexical-senses/lexical-senses.service';
 
 const details = {
@@ -41,4 +44,36 @@ test('lists, edits, and removes a stored LexicalSense', async () => {
 
   assert.deepEqual(await service.remove('sense-1'), { id: 'sense-1' });
   assert.equal(deleted, true);
+});
+
+test('shows icon actions and enables saving only after a definition changes', async () => {
+  const item = {
+    id: 'sense-1', lexical_item_it: 'ponte', part_of_speech: 'noun',
+    definition_it: 'struttura per attraversare', definition_pl: 'most', editable: true,
+  };
+  const dom = new JSDOM('<input id="stored-search"><div id="stored-list"></div><p id="status"></p><p id="error" hidden></p>', { runScripts: 'outside-only' });
+  const { window } = dom;
+  window.fetch = (async (_path: string, options?: RequestInit) => {
+    if (!options?.method) return new Response(JSON.stringify([item]), { headers: { 'content-type': 'application/json' } });
+    return new Response(JSON.stringify({ ...item, definition_pl: 'przeprawa' }), { headers: { 'content-type': 'application/json' } });
+  }) as typeof window.fetch;
+  window.eval(await readFile(join(process.cwd(), 'dist', 'browser', 'stored-lexical-senses.js'), 'utf8'));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const doc = window.document;
+  const save = doc.querySelector<HTMLButtonElement>('[aria-label="Zapisz zmiany"]');
+  const remove = doc.querySelector<HTMLButtonElement>('[aria-label="Usuń wpis"]');
+  assert.ok(save);
+  assert.ok(remove);
+  assert.equal(save.textContent, '💾');
+  assert.equal(remove.textContent, '🗑');
+  assert.equal(save.disabled, true);
+  const polish = doc.querySelector<HTMLTextAreaElement>('[data-definition-pl]');
+  assert.ok(polish);
+  polish.value = 'przeprawa';
+  polish.dispatchEvent(new window.Event('input', { bubbles: true }));
+  assert.equal(save.disabled, false);
+  save.click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(save.disabled, true);
+  dom.window.close();
 });

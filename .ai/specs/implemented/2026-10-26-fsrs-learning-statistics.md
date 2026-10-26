@@ -7,7 +7,7 @@ Updated: 2026-10-26 — zakres terminów 7/30 dni, zwijane listy i nowa kolejno�
 
 ## 📝 TLDR
 
-Uczący się widzi obecnie liczbę należnych powtórek i nowych znaczeń, ale nie może ocenić postępu ani obciążenia nauką w czasie. Proponowany ekran statystyk pokaże historię ocen, skuteczność zapamiętywania, kalendarz już zaplanowanych powtórek oraz rozkłady trudności, stabilności i prawdopodobieństwa przypomnienia na podstawie zapisanych danych FSRS. Symulacja przyszłych ocen należy do [osobnej specyfikacji](../2026-10-26-fsrs-future-review-simulation.md).
+Uczący się widzi obecnie liczbę należnych powtórek i nowych znaczeń, ale nie może ocenić postępu ani obciążenia nauką w czasie. Proponowany ekran statystyk pokaże historię ocen, skuteczność zapamiętywania, kalendarz już zaplanowanych powtórek oraz rozkłady trudności, stabilności i prawdopodobieństwa przypomnienia na podstawie zapisanych danych FSRS. Symulacja przyszłych ocen należy do [osobnej specyfikacji](2026-10-26-fsrs-future-review-simulation.md).
 
 ## 📝 Problem Statement
 
@@ -25,7 +25,7 @@ Obecny ekran Nauka pokazuje tylko bieżącą pracę. `FsrsState`, `FsrsReview` i
 
 Strona „Statystyki nauki” ma pięć czytelnych części. Podsumowanie pokazuje liczbę znaczeń rozpoczętych, nowych i należnych teraz. Historia pokazuje liczby ocen Again, Hard, Good i Easy według dni. Rzeczywista skuteczność pokazuje liczbę udanych pierwszych formalnych ocen znaczenia w dniu, liczbę prób i ich iloraz. Kalendarz pokazuje jeden zapisany termin na każdą rozpoczętą kartę. Ostatnia część pokazuje rozkłady trudności, stabilności i prawdopodobieństwa przypomnienia.
 
-Domyślny zakres historii to 30 dni; można wybrać 7, 30, 90 dni lub całą historię. Wszystkie dni liczy strefa Europe/Warsaw. Kalendarz ma osobny licznik zaległych znaczeń i wybór 7 lub 30 kolejnych dni zapisanych terminów. Nie zakłada przyszłych ocen ani dalszych terminów po nich. Symulacja to [odrębna funkcja](../2026-10-26-fsrs-future-review-simulation.md).
+Domyślny zakres historii to 30 dni; można wybrać 7, 30, 90 dni lub całą historię. Wszystkie dni liczy strefa Europe/Warsaw. Kalendarz ma osobny licznik zaległych znaczeń i wybór 7 lub 30 kolejnych dni zapisanych terminów. Nie zakłada przyszłych ocen ani dalszych terminów po nich. Symulacja to [odrębna funkcja](2026-10-26-fsrs-future-review-simulation.md).
 
 W [Anki](https://docs.ankiweb.net/manual/stats) historia, true retention, przyszłe terminy i miary pamięci są wyraźnie rozdzielone; pierwsza ocena karty w dniu decyduje o true retention. [Mnemosyne](https://mnemosyne-proj.org/features) również rozdziela harmonogram i retencję. Filippo może pominąć talie, filtry i czas odpowiedzi: nie gromadzi takich danych i ma jednego uczącego się.
 
@@ -106,4 +106,4 @@ Brak blokujących dla tej specyfikacji. Użytkownik wybrał osobną specyfikacj�
 
 - [Ekran Nauka](2026-10-26-study-screen.md)
 - [Integracja FSRS](2026-10-26-fsrs-integration.md)
-- [Symulacja przyszłych powtórek](../2026-10-26-fsrs-future-review-simulation.md)
+- [Symulacja przyszłych powtórek](2026-10-26-fsrs-future-review-simulation.md)

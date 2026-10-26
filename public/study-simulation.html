@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Filippo · Symulacja powtórek</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/lexical-senses.css" />
+    <link rel="stylesheet" href="/study-statistics.css" />
+    <link rel="stylesheet" href="/study-simulation.css" />
+    <script src="/assets/study-simulation.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">F</span><span>filippo <small>/ nauka</small></span></div>
+      <nav class="page-nav" aria-label="Nawigacja główna">
+        <a href="/">Taksonomia</a><a href="/profile.html">Profil kompetencyjny</a>
+        <details class="lexical-menu"><summary>Słownictwo</summary><div class="lexical-menu-items"><a href="/lexical-senses.html">Dodaj znaczenia</a><a href="/generation-proposals.html">Propozycje do przetworzenia</a><a href="/stored-lexical-senses.html">Zapisane znaczenia</a></div></details>
+        <a href="/study.html">Nauka</a>
+        <details class="lexical-menu statistics-menu"><summary class="current">Statystyki</summary><div class="lexical-menu-items"><a href="/study-statistics.html">Statystyki nauki</a><a class="current" href="/study-simulation.html" aria-current="page">Symulacja powtórek</a></div></details>
+      </nav>
+    </header>
+    <main class="shell lexical-shell statistics-shell simulation-shell">
+      <section class="intro"><div><p class="eyebrow">Włoskie słownictwo</p><h1>Symulacja <em>powtórek</em></h1><p>Możliwy przebieg najbliższych 30 dni przy założonych przyszłych ocenach.</p></div><a class="statistics-back" href="/study-statistics.html">← Statystyki nauki</a></section>
+      <section class="lexical-panel" aria-labelledby="settings-heading">
+        <div class="section-heading"><span>Scenariusz</span><h2 id="settings-heading">Ustawienia symulacji</h2></div>
+        <p class="statistics-copy">Obliczenie jest hipotetyczne i nie zmienia nauki ani zapisanych terminów FSRS.</p>
+        <form id="simulation-form" class="simulation-form">
+          <label for="new-per-day">Nowe znaczenia dziennie <input id="new-per-day" name="newPerDay" type="number" min="0" max="100" step="1" value="0" required /></label>
+          <label for="seed">Ziarno losowania <input id="seed" name="seed" type="number" min="0" max="4294967295" step="1" value="20261026" required /></label>
+          <button id="simulate" type="submit">Oblicz scenariusz</button>
+        </form>
+        <p id="simulation-loading" class="statistics-copy" role="status" hidden>Obliczam 100 przebiegów…</p>
+        <div id="simulation-error" class="error" role="alert" hidden></div>
+      </section>
+      <section id="simulation-result" class="lexical-panel" aria-labelledby="result-heading" hidden>
+        <div class="section-heading"><span>Wynik hipotetyczny</span><h2 id="result-heading">Symulacja, nie zapisany harmonogram</h2></div>
+        <p id="simulation-stale" class="simulation-stale" role="status" hidden>Parametry się zmieniły. Oblicz scenariusz ponownie, aby zobaczyć aktualny wynik.</p>
+        <p id="simulation-meta" class="statistics-copy"></p>
+        <div id="simulation-summary" class="statistics-cards"></div>
+        <div id="simulation-assumptions" class="simulation-assumptions"></div>
+        <div id="simulation-warnings" class="simulation-warnings" hidden></div>
+      </section>
+      <section id="simulation-chart-section" class="lexical-panel" aria-labelledby="chart-heading" hidden>
+        <div class="section-heading"><span>30 dni</span><h2 id="chart-heading">Możliwe obciążenie</h2></div>
+        <p class="statistics-copy">Znacznik pokazuje średnią liczbę formalnych powtórek. Jasny pas oznacza zakres od 10. do 90. percentyla; liczby nowych znaczeń i utrwaleń są pokazane osobno.</p>
+        <div class="simulation-legend"><span class="simulation-legend-formal">Średnia powtórek</span><span class="simulation-legend-range">10.–90. percentyl</span><span class="simulation-legend-new">Nowe</span><span class="simulation-legend-reinforcement">Utrwalenia</span></div>
+        <div id="simulation-chart" class="simulation-chart" aria-label="Wykres 30-dniowego scenariusza"></div>
+        <details class="statistics-days"><summary>Tabela dzienna symulacji</summary><div class="table-scroll"><table id="simulation-table"><caption>Dzienne średnie i zakres formalnych powtórek w hipotetycznym scenariuszu</caption><thead><tr><th scope="col">Dzień</th><th scope="col">Średnia powtórek</th><th scope="col">10. percentyl</th><th scope="col">90. percentyl</th><th scope="col">Nowe</th><th scope="col">Utrwalenia</th></tr></thead><tbody></tbody></table></div></details>
+      </section>
+    </main>
+  </body>
+</html>

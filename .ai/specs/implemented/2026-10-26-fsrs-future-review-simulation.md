@@ -1,7 +1,8 @@
 # Symulacja przyszłych powtórek FSRS
 
-Status: active
+Status: implemented
 Created: 2026-10-26
+Implemented: 2026-10-26 — wdrożono lokalnie jako drugą stronę menu „Statystyki”, bez PR.
 
 ## 📝 TLDR
 
@@ -9,7 +10,7 @@ Kalendarz statystyk pokaże tylko terminy już wyznaczone przez FSRS. Uczący si
 
 ## 📝 Problem Statement
 
-Zapisane terminy odpowiadają tylko następnej powtórce każdego znaczenia. Bez jawnych założeń o dalszych ocenach nie można z nich wywnioskować kolejnych terminów ani przyszłego obciążenia nauką. Taki scenariusz wymaga odróżnienia od [kalendarza terminów](implemented/2026-10-26-fsrs-learning-statistics.md).
+Zapisane terminy odpowiadają tylko następnej powtórce każdego znaczenia. Bez jawnych założeń o dalszych ocenach nie można z nich wywnioskować kolejnych terminów ani przyszłego obciążenia nauką. Taki scenariusz wymaga odróżnienia od [kalendarza terminów](2026-10-26-fsrs-learning-statistics.md).
 
 ## 📝 Intended Behavior and Scope
 
@@ -22,7 +23,7 @@ Zapisane terminy odpowiadają tylko następnej powtórce każdego znaczenia. Bez
 
 ## 📝 Proposed Solution
 
-Osobna zakładka „Symulacja” przy [statystykach rzeczywistych](implemented/2026-10-26-fsrs-learning-statistics.md) pokazuje możliwy rozkład pracy przez 30 dni. Użytkownik ustawia liczbę nowych znaczeń rozpoczynanych dziennie, także zero. Dla każdego już uczonego znaczenia punkt startowy stanowi bieżąca karta FSRS, a dla nowych — istniejące znaczenia bez karty, do wyczerpania ich liczby. Symulacja zakłada, że wszystkie należne powtórki są wykonane w dniu terminu, a następnie rozpoczynana jest zadana liczba nowych znaczeń. Zaległe terminy trafiają do pierwszego dnia; wiele terminów tego samego dnia jest obsługiwanych kolejno według godzin, a dopiero potem sumowanych do dziennego wyniku.
+Osobna strona „Symulacja powtórek” w menu „Statystyki”, obok [statystyk rzeczywistych](2026-10-26-fsrs-learning-statistics.md) pokazuje możliwy rozkład pracy przez 30 dni. Użytkownik ustawia liczbę nowych znaczeń rozpoczynanych dziennie, także zero. Dla każdego już uczonego znaczenia punkt startowy stanowi bieżąca karta FSRS, a dla nowych — istniejące znaczenia bez karty, do wyczerpania ich liczby. Symulacja zakłada, że wszystkie należne powtórki są wykonane w dniu terminu, a następnie rozpoczynana jest zadana liczba nowych znaczeń. Zaległe terminy trafiają do pierwszego dnia; wiele terminów tego samego dnia jest obsługiwanych kolejno według godzin, a dopiero potem sumowanych do dziennego wyniku.
 
 Każda przyszła formalna powtórka ma losowany wynik przypomnienia według prawdopodobieństwa z FSRS. Brak przypomnienia daje Again. Po przypomnieniu Hard, Good lub Easy są losowane według proporcji formalnych pozytywnych ocen w ostatnich 30 dniach. Pierwsza ocena nowego znaczenia korzysta z rozkładu pierwszych ocen nowych znaczeń z tego okresu. Jeżeli takiej próbki nie ma, używa się rozkładu wszystkich formalnych ocen z tego okresu; przy całkowitym braku historii jawnie przyjmuje się Good i oznacza wynik jako oparty na założeniu zastępczym. Lokalne utrwalenie po formalnym Again może być doliczone raz jako osobna próba pracy, zgodnie z bieżącą kolejką, bez zmiany karty FSRS.
 
@@ -34,7 +35,7 @@ Wiele przebiegów z tymi samymi danymi wejściowymi daje dla każdego dnia śred
 
 Backendowy moduł symulacji bierze spójny, tylko do odczytu obraz kart FsrsState, znaczeń bez karty, aktywnej FsrsConfigRevision oraz historii FsrsReview i StudyAttempt. Kopie kart istnieją wyłącznie w pamięci obliczenia. Dalsze terminy wyznacza ten sam przypięty ts-fsrs i aktywna konfiguracja, których używa rzeczywista usługa ocen; nie zapisuje się hipotetycznych FsrsReview ani FsrsState. Biblioteczne API oblicza prawdopodobieństwo przypomnienia dla kolejnej chwili oceny. Po ocenie aktualizowana jest wyłącznie symulowana kopia karty i kolejka jej przyszłych terminów.
 
-Przebiegi używają jawnego ziarna pseudolosowego oraz ograniczeń czasu i liczby zdarzeń. Te same dane wejściowe i ziarno dają te same wyniki testowe. Zmiana liczby nowych dziennie lub prawdziwego stanu FSRS wymaga nowej symulacji; brak trwałego cache i tabeli z wynikami. Gdy limit obliczeń zostanie osiągnięty, użytkownik dostaje błąd lub informację o niepełnym scenariuszu, nigdy po cichu ucięty wykres. Istniejące lokalne utrwalenia na starcie są rozpoznawane z ostatnich dzisiejszych StudyAttempt według tej samej reguły co StudyService: ostatnia formalna ocena Again bez późniejszego utrwalenia daje jedną próbę, chyba że termin FSRS już nadszedł. Przyszłe formalne Again dodaje jedną nietrwałą próbę lokalną; jej wynik nie zmienia symulowanej karty. Jeżeli przed nią nadejdzie następny termin FSRS, pierwszeństwo ma formalna powtórka.
+Przebiegi używają jawnego ziarna pseudolosowego oraz ograniczeń czasu i liczby zdarzeń. Te same dane wejściowe i ziarno dają te same wyniki testowe. Zmiana liczby nowych dziennie lub prawdziwego stanu FSRS wymaga nowej symulacji; brak trwałego cache i tabeli z wynikami. Gdy limit obliczeń zostanie osiągnięty, użytkownik dostaje błąd lub informację o niepełnym scenariuszu, nigdy po cichu ucięty wykres. Nowe znaczenia są rozpoczynane pod koniec dnia, po należnych powtórkach. Lokalną próbę po przyszłym `Again` szacuje się minutę później, chyba że do tej chwili nadszedł następny formalny termin. Istniejące lokalne utrwalenia na starcie są rozpoznawane z ostatnich dzisiejszych StudyAttempt według tej samej reguły co StudyService: ostatnia formalna ocena Again bez późniejszego utrwalenia daje jedną próbę, chyba że termin FSRS już nadszedł. Przyszłe formalne Again dodaje jedną nietrwałą próbę lokalną; jej wynik nie zmienia symulowanej karty. Jeżeli przed nią nadejdzie następny termin FSRS, pierwszeństwo ma formalna powtórka.
 
 ## 📝 Data Model
 
@@ -48,7 +49,7 @@ Znaczenia z dueAt przed asOf są zaległe i trafiają do pierwszego dnia scenari
 
 ## 📝 UI/UX
 
-Zakładka jest wizualnie oddzielona od „Zaplanowanych terminów”. Kontrolka liczby nowych dziennie i przycisk „Oblicz scenariusz” uruchamiają obliczenie. Nagłówek wyniku mówi „Symulacja, nie zapisany harmonogram”; podaje horyzont, założenie wykonania wszystkich należnych powtórek, próbkę ocen z ostatnich 30 dni i ewentualne założenie zastępcze. Wykres obciążenia ma zakres zmienności i dostępną tabelę liczbową. Zmiana parametru oznacza poprzedni wynik jako nieaktualny do ponownego obliczenia. Układ, typografia i kolory kontynuują istniejący styl Filippo także na wąskim ekranie.
+Strona jest wizualnie oddzielona od „Zaplanowanych terminów”. Kontrolka liczby nowych dziennie i przycisk „Oblicz scenariusz” uruchamiają obliczenie. Nagłówek wyniku mówi „Symulacja, nie zapisany harmonogram”; podaje horyzont, założenie wykonania wszystkich należnych powtórek, próbkę ocen z ostatnich 30 dni i ewentualne założenie zastępcze. Wykres obciążenia ma zakres zmienności i dostępną tabelę liczbową. Zmiana parametru oznacza poprzedni wynik jako nieaktualny do ponownego obliczenia. Układ, typografia i kolory kontynuują istniejący styl Filippo także na wąskim ekranie.
 
 ## 📝 Edge Cases & Failure Scenarios
 
@@ -74,7 +75,7 @@ Symulacja zależy od sposobu oceniania w przyszłości. Proporcje z ostatnich 30
 
 1. Zbudować kopię aktualnego stanu i mechanizm zdarzeń na 30 dni z tą samą biblioteką FSRS, aktywną konfiguracją, deterministycznym ziarnem i limitami pracy. Test porównuje pojedynczy krok z rzeczywistą usługą FSRS, kilka terminów jednego dnia i brak zapisu do bazy.
 2. Dodać losowanie zapamiętania z R oraz pozytywnej oceny z proporcji ostatnich 30 dni; wykonać wiele przebiegów i agregować średnią oraz 10./90. percentyl. Test obejmuje zerową próbkę, skrajne prawdopodobieństwa i powtarzalność.
-3. Udostępnić API i zakładkę z 30-dniowym wykresem, tabelą, założeniami, stanem ładowania i błędu. Zweryfikować brak pomylenia z kalendarzem zapisanych terminów oraz wygląd mobilny.
+3. Udostępnić API i stronę z 30-dniowym wykresem, tabelą, założeniami, stanem ładowania i błędu. Zweryfikować brak pomylenia z kalendarzem zapisanych terminów oraz wygląd mobilny.
 
 ### Phase 2 — nowe znaczenia i pełna praca
 
@@ -83,13 +84,13 @@ Symulacja zależy od sposobu oceniania w przyszłości. Proporcje z ostatnich 30
 
 ## Acceptance Criteria
 
-- [ ] Użytkownik może ustawić liczbę nowych znaczeń rozpoczynanych dziennie i zobaczyć 30-dniowy scenariusz osobny od zapisanych terminów.
-- [ ] Symulacja używa bieżących kart i ustawień FSRS; przyszłe powodzenia i błędy są losowane z R, a pozytywne oceny z ostatnich 30 dni historii.
-- [ ] Pierwsze oceny nowych znaczeń korzystają z dostępnej historii nowych; zastępcze założenie jest jawne i liczba nowych nie przekracza dostępnej puli.
-- [ ] Wynik pokazuje średnią i zakres 10.–90. percentyla formalnych powtórek, nowe znaczenia i lokalne utrwalenia, z liczebnością próbki i opisem założeń.
-- [ ] Powtórne uruchomienie z tym samym stanem i ziarnem daje ten sam wynik, a zmiana prawdziwych danych powoduje nową migawkę.
-- [ ] Obliczenie nie zmienia kart, konfiguracji ani historii; brak danych, wadliwy stan i przekroczenie limitu mają jawny wynik lub błąd.
-- [ ] Wykres ma dostępny odpowiednik liczbowy i zachowuje styl Filippo na szerokim i wąskim ekranie.
+- [x] Użytkownik może ustawić liczbę nowych znaczeń rozpoczynanych dziennie i zobaczyć 30-dniowy scenariusz osobny od zapisanych terminów.
+- [x] Symulacja używa bieżących kart i ustawień FSRS; przyszłe powodzenia i błędy są losowane z R, a pozytywne oceny z ostatnich 30 dni historii.
+- [x] Pierwsze oceny nowych znaczeń korzystają z dostępnej historii nowych; zastępcze założenie jest jawne i liczba nowych nie przekracza dostępnej puli.
+- [x] Wynik pokazuje średnią i zakres 10.–90. percentyla formalnych powtórek, nowe znaczenia i lokalne utrwalenia, z liczebnością próbki i opisem założeń.
+- [x] Powtórne uruchomienie z tym samym stanem i ziarnem daje ten sam wynik, a zmiana prawdziwych danych powoduje nową migawkę.
+- [x] Obliczenie nie zmienia kart, konfiguracji ani historii; brak danych, wadliwy stan i przekroczenie limitu mają jawny wynik lub błąd.
+- [x] Wykres ma dostępny odpowiednik liczbowy i zachowuje styl Filippo na szerokim i wąskim ekranie.
 
 ## Open Questions
 
@@ -97,6 +98,6 @@ Brak blokujących. Użytkownik wybrał automatyczne losowanie według FSRS, prop
 
 ## Related Records
 
-- [Statystyki rzeczywiste](implemented/2026-10-26-fsrs-learning-statistics.md)
-- [Ekran Nauka](implemented/2026-10-26-study-screen.md)
-- [Integracja FSRS](implemented/2026-10-26-fsrs-integration.md)
+- [Statystyki rzeczywiste](2026-10-26-fsrs-learning-statistics.md)
+- [Ekran Nauka](2026-10-26-study-screen.md)
+- [Integracja FSRS](2026-10-26-fsrs-integration.md)

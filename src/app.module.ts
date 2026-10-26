@@ -13,13 +13,15 @@ import { StudyController } from './study/study.controller';
 import { StudyService } from './study/study.service';
 import { StudyStatisticsController } from './study/study-statistics.controller';
 import { StudyStatisticsService } from './study/study-statistics.service';
+import { StudySimulationController } from './study/study-simulation.controller';
+import { StudySimulationService } from './study/study-simulation.service';
 
 @Module({
   imports: [DatabaseModule, ServeStaticModule.forRoot(
     { rootPath: join(process.cwd(), 'dist', 'browser'), serveRoot: '/assets' },
     { rootPath: join(process.cwd(), 'public') },
   )],
-  controllers: [TaxonomyController, ProfileController, LexicalSensesController, StudyController, StudyStatisticsController],
-  providers: [TaxonomyService, ProfileService, LexicalSensesService, FsrsService, StudyService, StudyStatisticsService],
+  controllers: [TaxonomyController, ProfileController, LexicalSensesController, StudyController, StudyStatisticsController, StudySimulationController],
+  providers: [TaxonomyService, ProfileService, LexicalSensesService, FsrsService, StudyService, StudyStatisticsService, StudySimulationService],
 })
 export class AppModule {}

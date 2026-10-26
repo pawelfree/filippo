@@ -2,6 +2,10 @@
 
 Read this index before working on related areas. Add concise, evidence-based lessons here after a bug fix or other reusable finding. Put longer explanations in `lessons/YYYY-MM-DD-slug.md` and link them from the entry.
 
+- Oczekujące utrwalenie twórz po formalnej ocenie `Again`, ale nie po `Again` w samym utrwaleniu. W przeciwnym razie błędne odpowiedzi tworzą niekończącą się lokalną kolejkę i blokują nowe znaczenia. Dotyczy [ograniczenia utrwaleń](runs/2026-10-26-limit-study-reinforcement.md).
+
+- W kolejce nauki rozróżniaj utrwalenie po należnej powtórce od utrwalenia po pierwszym pokazaniu nowego znaczenia. Wspólny priorytet dla obu sprawiał, że błędnie ocenione nowe znaczenie wracało natychmiast przed pozostałymi nowymi. Dotyczy [kolejności nauki](runs/2026-10-26-study-reinforcement-order.md).
+
 - Reset postępu FSRS musi w jednej transakcji usunąć próby sesji przed dziennikiem FSRS i kartami, a następnie unieważnić tokeny prezentacji z innych kart przeglądarki. Same puste tabele pozwoliłyby starej ocenie ponownie rozpocząć naukę. Dotyczy [resetu nauki](runs/2026-10-26-reset-study-progress.md).
 
 - Schemat zapisu propozycji LexicalSense musi akceptować rekordy dopuszczone przez format odpowiedzi generowania; inaczej można utrwalić propozycję, której nie da się zapisać. Błędy zapisu pokazuj przy konkretnej propozycji. Dotyczy [naprawy zapisu](runs/2026-10-26-generation-proposal-save-empty-examples.md).

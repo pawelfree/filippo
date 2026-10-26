@@ -10,6 +10,64 @@ import { Rating } from 'ts-fsrs';
 import { FsrsService } from '../src/fsrs/fsrs.service';
 import { StudyService } from '../src/study/study.service';
 
+test('a forgotten new meaning returns after the other new meanings', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'filippo-study-order-'));
+  const oldUrl = process.env.DATABASE_URL;
+  process.env.DATABASE_URL = `file:${join(directory, 'test.db')}`;
+  let prisma: PrismaClient | undefined;
+  try {
+    const migrationsRoot = join(process.cwd(), 'prisma', 'migrations');
+    const migrations = (await readdir(migrationsRoot, { withFileTypes: true })).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+    for (const migration of migrations) {
+      const sql = await readFile(join(migrationsRoot, migration, 'migration.sql'), 'utf8');
+      const applied = spawnSync('sqlite3', [join(directory, 'test.db')], { input: sql, encoding: 'utf8' });
+      assert.equal(applied.status, 0, applied.stderr || applied.stdout);
+    }
+    prisma = new PrismaClient();
+    const first = await prisma.lexicalSense.create({ data: { lexicalItem: 'casa', definition: 'abitazione' } });
+    const second = await prisma.lexicalSense.create({ data: { lexicalItem: 'gatto', definition: 'animale' } });
+    const study = new StudyService(prisma as never, new FsrsService(prisma as never));
+    const initial = await study.next();
+    assert.equal(initial.candidate?.lexicalSenseId, first.id);
+    const forgotten = await study.record({ eventId: randomUUID(), lexicalSenseId: first.id, presentationToken: initial.candidate!.presentationToken, rating: Rating.Again });
+    assert.equal(forgotten.reinforcementCount, 1);
+    assert.equal(forgotten.newCount, 1);
+    assert.equal(forgotten.candidate?.lexicalSenseId, second.id);
+    assert.equal(forgotten.candidate?.kind, 'new');
+    const learned = await study.record({ eventId: randomUUID(), lexicalSenseId: second.id, presentationToken: forgotten.candidate!.presentationToken, rating: Rating.Good });
+    assert.equal(learned.candidate?.lexicalSenseId, first.id);
+    assert.equal(learned.candidate?.kind, 'reinforcement');
+    const fsrsReviewsBeforeReinforcement = await prisma.fsrsReview.count();
+    const stillForgotten = await study.record({ eventId: randomUUID(), lexicalSenseId: first.id, presentationToken: learned.candidate!.presentationToken, rating: Rating.Again });
+    assert.equal(stillForgotten.accepted.kind, 'reinforcement');
+    assert.equal(await prisma.fsrsReview.count(), fsrsReviewsBeforeReinforcement);
+    assert.equal(stillForgotten.reinforcementCount, 0);
+    assert.equal(stillForgotten.candidate, null);
+    const third = await prisma.lexicalSense.create({ data: { lexicalItem: 'acqua', definition: 'liquido' } });
+    const resumed = new StudyService(prisma as never, new FsrsService(prisma as never));
+    assert.equal((await resumed.next()).candidate?.lexicalSenseId, third.id);
+    const stored = (await prisma.fsrsState.findUnique({ where: { learnerId_lexicalSenseId: { learnerId: 'local', lexicalSenseId: first.id } } }))!;
+    const card = JSON.parse(stored.schedulerData!);
+    card.dueAt = new Date(Date.now() - 1000).toISOString();
+    await prisma.fsrsState.update({ where: { id: stored.id }, data: { dueAt: new Date(card.dueAt), schedulerData: JSON.stringify(card) } });
+    const due = await resumed.next();
+    assert.equal(due.candidate?.lexicalSenseId, first.id);
+    assert.equal(due.candidate?.kind, 'due');
+    const dueAgain = await resumed.record({ eventId: randomUUID(), lexicalSenseId: first.id, presentationToken: due.candidate!.presentationToken, rating: Rating.Again });
+    assert.equal(dueAgain.candidate?.kind, 'reinforcement');
+    const reviewsAfterDue = await prisma.fsrsReview.count();
+    const reinforcedAgain = await resumed.record({ eventId: randomUUID(), lexicalSenseId: first.id, presentationToken: dueAgain.candidate!.presentationToken, rating: Rating.Again });
+    assert.equal(reinforcedAgain.reinforcementCount, 0);
+    assert.equal(reinforcedAgain.candidate?.lexicalSenseId, third.id);
+    assert.equal(reinforcedAgain.candidate?.kind, 'new');
+    assert.equal(await prisma.fsrsReview.count(), reviewsAfterDue);
+  } finally {
+    await prisma?.$disconnect();
+    if (oldUrl === undefined) delete process.env.DATABASE_URL; else process.env.DATABASE_URL = oldUrl;
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('study queue persists formal and local attempts, retries safely, and rolls back partial reviews', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'filippo-study-'));
   const oldUrl = process.env.DATABASE_URL;
@@ -26,10 +84,9 @@ test('study queue persists formal and local attempts, retries safely, and rolls 
     prisma = new PrismaClient();
     const first = await prisma.lexicalSense.create({ data: { lexicalItem: 'casa', definition: 'abitazione', detailsJson: JSON.stringify({ definition_pl: 'dom', part_of_speech: 'noun' }) } });
     const second = await prisma.lexicalSense.create({ data: { lexicalItem: 'gatto', definition: 'animale' } });
-    const third = await prisma.lexicalSense.create({ data: { lexicalItem: 'acqua', definition: 'liquido' } });
     const fsrs = new FsrsService(prisma as never);
     const study = new StudyService(prisma as never, fsrs);
-    assert.deepEqual(await study.overview(), { dueCount: 0, reinforcementCount: 0, newCount: 3, nextDueAt: null });
+    assert.deepEqual(await study.overview(), { dueCount: 0, reinforcementCount: 0, newCount: 2, nextDueAt: null });
 
     const firstCandidate = (await study.next()).candidate!;
     assert.equal(firstCandidate.lexicalSenseId, first.id);
@@ -38,7 +95,7 @@ test('study queue persists formal and local attempts, retries safely, and rolls 
     const firstBody = { eventId: firstEvent, lexicalSenseId: first.id, presentationToken: firstCandidate.presentationToken, rating: Rating.Good };
     const firstResult = await study.record(firstBody);
     assert.equal(firstResult.accepted.kind, 'new');
-    assert.equal(firstResult.newCount, 2);
+    assert.equal(firstResult.newCount, 1);
     assert.equal(await prisma.fsrsReview.count(), 1);
     const localDate = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Warsaw', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(firstResult.accepted.reviewedAt).map(({ type, value }) => [type, value]));
     assert.equal((await prisma.studyAttempt.findUnique({ where: { eventId: firstEvent } }))!.dayKey, `${localDate.year}-${localDate.month}-${localDate.day}`);
@@ -58,7 +115,9 @@ test('study queue persists formal and local attempts, retries safely, and rolls 
     assert.equal(local.accepted.kind, 'reinforcement');
     assert.equal(local.reinforcementCount, 0);
     assert.equal(await prisma.fsrsReview.count(), 2);
-    assert.equal(local.candidate?.lexicalSenseId, third.id);
+    assert.equal(local.candidate, null);
+
+    const third = await prisma.lexicalSense.create({ data: { lexicalItem: 'acqua', definition: 'liquido' } });
 
     const stored = (await prisma.fsrsState.findUnique({ where: { learnerId_lexicalSenseId: { learnerId: 'local', lexicalSenseId: second.id } } }))!;
     const card = JSON.parse(stored.schedulerData!);

@@ -38,37 +38,44 @@ function publicSense(sense: LexicalSense): Record<string, unknown> {
 export class StudyService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(FsrsService) private readonly fsrs: FsrsService) {}
 
-  private async latestAttempts(db: StudyDb, day: string): Promise<Map<string, StudyAttempt>> {
+  private async todayAttempts(db: StudyDb, day: string): Promise<{ latest: Map<string, StudyAttempt>; formalKind: Map<string, Kind> }> {
     const attempts = await db.studyAttempt.findMany({ where: { dayKey: day }, orderBy: [{ reviewedAt: 'desc' }, { eventId: 'desc' }] });
     const latest = new Map<string, StudyAttempt>();
-    for (const attempt of attempts) if (!latest.has(attempt.lexicalSenseId)) latest.set(attempt.lexicalSenseId, attempt);
-    return latest;
+    const formalKind = new Map<string, Kind>();
+    for (const attempt of attempts) {
+      if (!latest.has(attempt.lexicalSenseId)) latest.set(attempt.lexicalSenseId, attempt);
+      if (attempt.kind !== 'reinforcement' && !formalKind.has(attempt.lexicalSenseId)) formalKind.set(attempt.lexicalSenseId, attempt.kind as Kind);
+    }
+    return { latest, formalKind };
   }
 
   private async snapshot(db: StudyDb, now: Date): Promise<Next> {
     const day = dayKey(now);
-    const [due, future, newCount, latest, config] = await Promise.all([
+    const [due, future, newCount, today, config] = await Promise.all([
       db.fsrsState.findMany({ where: { learnerId, dueAt: { lte: now } }, include: { lexicalSense: true }, orderBy: [{ dueAt: 'asc' }, { lexicalSenseId: 'asc' }] }),
       db.fsrsState.findFirst({ where: { learnerId, dueAt: { gt: now } }, select: { dueAt: true }, orderBy: { dueAt: 'asc' } }),
       db.lexicalSense.count({ where: { fsrsStates: { none: {} } } }),
-      this.latestAttempts(db, day),
+      this.todayAttempts(db, day),
       db.fsrsConfigRevision.findFirst({ orderBy: { revision: 'desc' }, select: { revision: true } }),
     ]);
     const incomplete = await db.fsrsState.findFirst({ where: { OR: [{ learnerId: { not: learnerId } }, { schedulerData: null }, { configRevision: null }] }, select: { id: true } });
     if (incomplete) throw new ConflictException('Starszy stan FSRS wymaga migracji przed użyciem.');
     const dueIds = new Set(due.map((state) => state.lexicalSenseId));
-    const pending = [...latest.values()].filter((attempt) => attempt.rating === Rating.Again && !dueIds.has(attempt.lexicalSenseId)).sort((a, b) => a.reviewedAt.getTime() - b.reviewedAt.getTime() || a.eventId.localeCompare(b.eventId));
+    const pending = [...today.latest.values()].filter((attempt) => attempt.rating === Rating.Again && attempt.kind !== 'reinforcement' && !dueIds.has(attempt.lexicalSenseId)).sort((a, b) => a.reviewedAt.getTime() - b.reviewedAt.getTime() || a.eventId.localeCompare(b.eventId));
     const pendingStates = pending.length ? await db.fsrsState.findMany({ where: { learnerId, lexicalSenseId: { in: pending.map((item) => item.lexicalSenseId) } }, include: { lexicalSense: true } }) : [];
     const pendingById = new Map(pendingStates.map((state) => [state.lexicalSenseId, state]));
     const reinforcement = pending.filter((attempt) => pendingById.has(attempt.lexicalSenseId));
-    const newSense = due.length || reinforcement.length ? null : await db.lexicalSense.findFirst({ where: { fsrsStates: { none: {} } }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] });
-    const selected = due[0] ? { kind: 'due' as const, sense: due[0].lexicalSense, state: due[0] } : reinforcement[0] ? { kind: 'reinforcement' as const, sense: pendingById.get(reinforcement[0].lexicalSenseId)!.lexicalSense, state: pendingById.get(reinforcement[0].lexicalSenseId)! } : newSense ? { kind: 'new' as const, sense: newSense, state: null } : null;
+    const dueReinforcement = reinforcement.filter((attempt) => today.formalKind.get(attempt.lexicalSenseId) === 'due');
+    const newReinforcement = reinforcement.filter((attempt) => today.formalKind.get(attempt.lexicalSenseId) !== 'due');
+    const newSense = due.length || dueReinforcement.length ? null : await db.lexicalSense.findFirst({ where: { fsrsStates: { none: {} } }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] });
+    const selectedReinforcement = dueReinforcement[0] ?? (newSense ? null : newReinforcement[0]);
+    const selected = due[0] ? { kind: 'due' as const, sense: due[0].lexicalSense, state: due[0] } : selectedReinforcement ? { kind: 'reinforcement' as const, sense: pendingById.get(selectedReinforcement.lexicalSenseId)!.lexicalSense, state: pendingById.get(selectedReinforcement.lexicalSenseId)! } : newSense ? { kind: 'new' as const, sense: newSense, state: null } : null;
     if (selected?.state) this.fsrs.readStoredCard(selected.state);
     return {
       dueCount: due.length, reinforcementCount: reinforcement.length, newCount, nextDueAt: future?.dueAt ?? null,
       candidate: selected ? {
         lexicalSenseId: selected.sense.id, sense: publicSense(selected.sense), kind: selected.kind,
-        presentationToken: token(selected.sense.id, selected.kind, selected.state?.version ?? null, latest.get(selected.sense.id)?.eventId ?? null, day, config?.revision ?? 0),
+        presentationToken: token(selected.sense.id, selected.kind, selected.state?.version ?? null, today.latest.get(selected.sense.id)?.eventId ?? null, day, config?.revision ?? 0),
       } : null,
     };
   }
@@ -104,7 +111,7 @@ export class StudyService {
     ]);
     if (!state && anyState) throw new ConflictException('Starszy stan FSRS wymaga migracji przed użyciem.');
     if (state) this.fsrs.readStoredCard(state);
-    const kind: Kind = !state ? 'new' : state.dueAt <= now ? 'due' : last?.rating === Rating.Again ? 'reinforcement' : 'new';
+    const kind: Kind = !state ? 'new' : state.dueAt <= now ? 'due' : last?.rating === Rating.Again && last.kind !== 'reinforcement' ? 'reinforcement' : 'new';
     if (state && kind === 'new') throw new ConflictException('To znaczenie nie jest jeszcze dostępne do oceny.');
     return { kind, state, lastEventId: last?.eventId ?? null };
   }

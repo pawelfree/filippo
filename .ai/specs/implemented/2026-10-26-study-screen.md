@@ -3,10 +3,12 @@
 Status: implemented
 Created: 2026-10-26
 Implemented: 2026-10-26 — spełniono kryteria akceptacji i zweryfikowano wdrożenie lokalne.
+Updated: 2026-10-26 — po zgłoszeniu błędu zmieniono kolejność utrwaleń nowych znaczeń; zobacz [naprawę kolejki](../../runs/2026-10-26-study-reinforcement-order.md).
+Updated: 2026-10-26 — ograniczono lokalne utrwalenie do jednej dodatkowej próby po każdej formalnej ocenie `Again`; zobacz [naprawę pętli](../../runs/2026-10-26-limit-study-reinforcement.md).
 
 ## 📝 TLDR
 
-Uczący się nie ma dziś ekranu, na którym zobaczy liczbę należnych powtórek i jeszcze nieuczonych `LexicalSense`, a następnie rozpocznie naukę. Proponowany ekran „Nauka” ma przeprowadzać przez wszystkie dostępne elementy w kolejności: należne powtórki, utrwalenia po błędach, nowe znaczenia. Użytkownik widzi cały wpis, ocenia go `Again`, `Hard`, `Good` lub `Easy` i może przerwać oraz wznowić pracę później. W tej iteracji materiałem jest sam `LexicalSense`; ćwiczenia generowane z jego użyciem należą do późniejszego etapu.
+Uczący się nie ma dziś ekranu, na którym zobaczy liczbę należnych powtórek i jeszcze nieuczonych `LexicalSense`, a następnie rozpocznie naukę. Ekran „Nauka” przeprowadza przez należne powtórki, ich utrwalenia po błędach, nowe znaczenia i dopiero potem utrwalenia nowych znaczeń. Użytkownik widzi cały wpis, ocenia go `Again`, `Hard`, `Good` lub `Easy` i może przerwać oraz wznowić pracę później. W tej iteracji materiałem jest sam `LexicalSense`; ćwiczenia generowane z jego użyciem należą do późniejszego etapu.
 
 Ekran startowy pokazuje wyłącznie dwie liczby i działania. Nie wyświetla listy ani szczegółów dostępnych znaczeń przed rozpoczęciem sesji.
 
@@ -23,15 +25,15 @@ Usługa FSRS już zapisuje stan i termin po otrzymaniu gotowej oceny, ale aplika
 - Pierwsza ocena nowego znaczenia i każda ocena znaczenia ponownie należnego według `dueAt` aktualizują FSRS. Dodatkowe utrwalenie po błędzie, wykonane przed kolejnym `dueAt`, zmienia wyłącznie kolejkę sesji. To samo znaczenie może zatem mieć więcej niż jedną ocenę FSRS w ciągu dnia.
 - Podczas sesji cały wpis `LexicalSense` jest widoczny od razu. W tym prototypie nie ma etapu odsłaniania odpowiedzi ani sprawdzania jej poprawności.
 - Liczniki pozostają widoczne podczas sesji i aktualizują się po ocenach: pozostałe należne powtórki, pozostałe nowe znaczenia i utrwalenia wymagane po błędach w bieżącej sesji.
-- Najpierw przechodzi przez należne powtórki. Znaczenia ocenione negatywnie wracają do utrwalenia po pozostałych należnych powtórkach. Nowe znaczenia pojawiają się dopiero po zakończeniu powtórek i utrwaleń.
+- Najpierw przechodzi przez należne powtórki i ich utrwalenia po błędach. Następnie pokazuje nowe znaczenia, a te ocenione jako `Again` wracają po pozostałych nowych znaczeniach. Po jednej dodatkowej próbie znaczenie czeka na termin FSRS także wtedy, gdy druga ocena to `Again`.
 - Użytkownik może przerwać naukę w dowolnym momencie i wrócić później bez ponownego zaliczania ocenionych elementów.
-- Wznowienie ponownie wylicza kolejkę z aktualnego stanu: najpierw terminy FSRS, które już nadeszły, potem utrwalenia z bieżącego dnia, na końcu nowe znaczenia. Nie zachowuje dawnej kolejności, jeśli terminy zmieniły się podczas przerwy.
+- Wznowienie ponownie wylicza kolejkę z aktualnego stanu: terminy FSRS, utrwalenia należnych powtórek, nowe znaczenia, utrwalenia nowych znaczeń. Nie zachowuje dawnej kolejności, jeśli terminy zmieniły się podczas przerwy.
 - Lista oczekujących utrwaleń nie przechodzi na kolejny dzień: o północy czasu `Europe/Warsaw` jest zerowana, a dostępność elementów wynika ponownie z terminów FSRS. Zapisane zdarzenia ocen pozostają w historii.
 - Generowanie i rozwiązywanie ćwiczeń pozostaje poza zakresem tej specyfikacji.
 
 ## 📝 Research & Proposed Solution
 
-[Anki](https://docs.ankiweb.net/deck-options.html) rozdziela nowe, należne i krótkie kroki nauki; po `Again` może wyznaczyć powtórkę po minucie. [Mnemosyne](https://mnemosyne-proj.org/help/getting-started.php) pokazuje błędne elementy ponownie po zaplanowanych powtórkach. Przyjmujemy z tych wzorców kolejność „terminowe → utrwalające → nowe”, bez ich talii, limitów dziennych i odsłaniania odpowiedzi. W przypiętym `ts-fsrs@6.0.0-beta.15` `DefaultScheduler` może wyznaczyć więcej niż jeden `dueAt` tego samego dnia; reguła jednej oceny FSRS na dzień zignorowałaby te terminy ([dokumentacja biblioteki](https://github.com/open-spaced-repetition/ts-fsrs/blob/main/packages/fsrs/README.md)).
+[Anki](https://docs.ankiweb.net/deck-options.html) rozdziela nowe, należne i krótkie kroki nauki; po `Again` może wyznaczyć powtórkę po minucie. [Mnemosyne](https://mnemosyne-proj.org/help/getting-started.php) pokazuje błędne elementy ponownie po zaplanowanych powtórkach. Kolejka ma kolejność „terminowe → utrwalenia terminowych → nowe → utrwalenia nowych”, bez talii, limitów dziennych i odsłaniania odpowiedzi. W przypiętym `ts-fsrs@6.0.0-beta.15` `DefaultScheduler` może wyznaczyć więcej niż jeden `dueAt` tego samego dnia; reguła jednej oceny FSRS na dzień zignorowałaby te terminy ([dokumentacja biblioteki](https://github.com/open-spaced-repetition/ts-fsrs/blob/main/packages/fsrs/README.md)).
 
 Backend wylicza liczniki i następny element z trwałego stanu, a przeglądarka prezentuje wynik. Bez stałej partii i kursora sesji: wznowienie jest nowym odczytem aktualnej kolejki. Dodatkowe utrwalenie po `Again` jest stanem aplikacji, nie nową powtórką FSRS przed `dueAt`.
 
@@ -42,16 +44,17 @@ Nowy `StudyService` korzysta z istniejących `LexicalSense`, `FsrsState` i `Fsrs
 Po każdym odczycie lub ocenie backend wybiera pierwszą niepustą grupę:
 
 1. `FsrsState.dueAt <= teraz`, najstarszy termin pierwszy (`dueAt`, potem `lexicalSenseId`). Obejmuje także krótkie kroki nauki i ponownej nauki wyznaczone przez FSRS.
-2. Znaczenia, których ostatnia ocena z bieżącego dnia to `Again`, o ile nie należą już do grupy 1; najstarszy oczekujący błąd pierwszy.
+2. Znaczenia ocenione dziś jako należne, których ostatnia ocena formalna to `Again` i które nie należą już do grupy 1 ani nie miały od niej lokalnego utrwalenia; najstarszy oczekujący błąd pierwszy.
 3. Znaczenia bez `FsrsState`, według `createdAt`, potem `id`.
+4. Znaczenia ocenione dziś jako nowe, których ostatnia ocena formalna to `Again` i które nie należą do grupy 1 ani nie miały od niej lokalnego utrwalenia; najstarszy oczekujący błąd pierwszy.
 
-`Again` dodaje lub utrzymuje oczekujące utrwalenie. `Hard`, `Good` i `Easy` je usuwają, ponieważ oznaczają zapamiętaną odpowiedź; `Hard` nie służy do oznaczania błędu ([Anki Manual](https://docs.ankiweb.net/deck-options.html)). Jeżeli po lokalnym utrwaleniu nadejdzie termin `dueAt`, znaczenie wraca jako formalna powtórka FSRS. Aktualna karta nie jest rezerwowana na czas nieaktywności: po przerwie lub zmianie dnia backend ponownie sprawdza uprawnienie do oceny.
+Formalne `Again` dodaje jedno oczekujące utrwalenie. Każda ocena tego utrwalenia, także `Again`, zdejmuje je z lokalnej kolejki; kolejna próba wynika z `dueAt` FSRS. `Hard` nie służy do oznaczania błędu ([Anki Manual](https://docs.ankiweb.net/deck-options.html)). Jeżeli przed lokalnym utrwaleniem nadejdzie termin `dueAt`, znaczenie wraca jako formalna powtórka FSRS. Aktualna karta nie jest rezerwowana na czas nieaktywności: po przerwie lub zmianie dnia backend ponownie sprawdza uprawnienie do oceny.
 
 ## 📝 Data Model
 
 Dodajemy `StudyAttempt`: `eventId` (unikalny klucz ponowienia żądania), `lexicalSenseId`, `presentationToken` (do sprawdzenia zgodności ponowienia), `kind` (`new`, `due`, `reinforcement`), `rating`, `reviewedAt` (czas serwera UTC), `dayKey` (lokalny dzień `Europe/Warsaw`), opcjonalny unikalny `fsrsReviewEventId` dla oceny przekazanej do FSRS. Rekord wskazuje istniejący `LexicalSense`; formalna ocena wskazuje odpowiadający `FsrsReview`. Indeks `(dayKey, lexicalSenseId, reviewedAt)` pozwala znaleźć ostatnią ocenę danego znaczenia w dniu. `eventId` zapobiega podwójnemu naliczeniu również dla lokalnych utrwaleń.
 
-Stan oczekującego utrwalenia wynika z ostatniego `StudyAttempt` danego znaczenia w aktualnym `dayKey`: `Again` oznacza oczekiwanie. O północy zmienia się `dayKey` aktywnej kolejki, więc wczorajsze błędy natychmiast przestają być dostępne; historia ocen nie jest kasowana. Nie powstaje tabela sesji ani kopia karty FSRS.
+Stan oczekującego utrwalenia wynika z ostatniego `StudyAttempt` danego znaczenia w aktualnym `dayKey`: `Again` po ocenie `new` lub `due` oznacza oczekiwanie; próba `reinforcement` wyczerpuje tę możliwość niezależnie od wyniku. O północy zmienia się `dayKey` aktywnej kolejki, więc wczorajsze błędy natychmiast przestają być dostępne; historia ocen nie jest kasowana. Nie powstaje tabela sesji ani kopia karty FSRS.
 
 ```mermaid
 flowchart LR
@@ -93,7 +96,7 @@ Token jest warunkiem zgodności, a nie uprawnieniem: backend ponownie sprawdza s
 
 ## 📝 Edge Cases & Failure Scenarios
 
-- `Again` wprowadza sens do utrwalania; kolejne `Again` utrzymuje go w kolejce aż do `Hard`, `Good` lub `Easy`, przerwania albo zmiany dnia. Jeżeli jest jedynym elementem, może wrócić od razu; użytkownik może zawsze przerwać.
+- Formalne `Again` wprowadza sens do jednego lokalnego utrwalenia. Kolejne `Again` podczas tego utrwalenia zapisuje błąd bez ponownego dodania do lokalnej kolejki; użytkownik może przejść dalej. Jeżeli jest to jedyny dostępny element, jedyne utrwalenie może pojawić się od razu.
 - Formalne `Again` może wyznaczyć `dueAt` za minutę. Przed tym terminem dodatkowa próba jest lokalna; po jego nadejściu ten sam sens ma pierwszeństwo jako formalna powtórka. Po północy lokalne oczekiwanie znika, ale termin i historia FSRS pozostają.
 - Ocena zapisana tuż przed utratą połączenia nie jest naliczana ponownie. Frontend zachowuje żądanie z `eventId` lokalnie do uzyskania potwierdzenia, także po przeładowaniu strony, a backend rozpoznaje duplikat.
 - Ocena w drugiej karcie, usunięty sens, zmiana dnia lub nieaktualny token nie nadpisują bieżącego stanu. Interfejs wyświetla krótki komunikat i pobiera kolejny aktualny element.
@@ -123,7 +126,7 @@ Brak limitu nowych znaczeń może powiększyć przyszłe zaległości; przerwani
 ### Phase 2 — sesja i oceny
 
 3. Dodać migrację `StudyAttempt` oraz odczyt ostatniej oceny według `dayKey`; przetestować utrwalenia, północ i wznowienie po nowej instancji aplikacji.
-4. Dodać selektor `due → reinforcement → new` i API następnego elementu. Testować kolejność, rozłączne liczniki oraz pojawienie się krótkiego terminu FSRS podczas otwartej sesji.
+4. Dodać selektor `due → reinforcement due → new → reinforcement new` i API następnego elementu. Testować kolejność, rozłączne liczniki oraz pojawienie się krótkiego terminu FSRS podczas otwartej sesji.
 5. Umożliwić `FsrsService` udział w transakcji oceniania, zachowując jego dotychczasowy kontrakt; dodać API oceny z idempotencją i kontrolą nieaktualnego tokenu. Testować równoległe karty, awarię zapisu, ponowienie `eventId` i ocenę lokalną bez zmiany FSRS.
 6. Dodać działający przycisk rozpoczęcia, widok pojedynczego pełnego sensu, przyciski czterech ocen, aktualizowane liczniki, przerwanie i wznowienie w istniejącym stylu wizualnym. Przejść ręcznie ścieżki: błąd → utrwalenie → nowy sens, termin minutowy FSRS, utrata sieci i zmiana dnia; sprawdzić spójność wyglądu i układu z ekranami słownictwa na wąskim i szerokim ekranie.
 
@@ -133,7 +136,7 @@ Brak limitu nowych znaczeń może powiększyć przyszłe zaległości; przerwani
 - [x] Ekran startowy pokazuje odrębne liczniki i umożliwia rozpoczęcie lub wznowienie, gdy są dostępne elementy, bez listy znaczeń i wyboru wielkości partii.
 - [x] W sesji cały wpis jest widoczny od razu, a liczniki pozostałych powtórek, nowych znaczeń i utrwaleń pozostają widoczne i aktualizują się po ocenach.
 - [x] Ocena nowego lub już należnego znaczenia aktualizuje FSRS; utrwalenie przed kolejnym terminem FSRS aktualizuje tylko kolejkę sesji.
-- [x] Wszystkie znaczenia z `dueAt <= teraz` mają pierwszeństwo przed utrwaleniami, a te przed nowymi znaczeniami. `Again` utrzymuje znaczenie w lokalnej kolejce do `Hard`, `Good` lub `Easy`; zmiana dnia ją zeruje bez usunięcia historii.
+- [x] Wszystkie znaczenia z `dueAt <= teraz` mają pierwszeństwo. Po nich wracają błędne należne powtórki, następnie nowe znaczenia, a na końcu utrwalenia błędnie ocenionych nowych znaczeń. Po jednej dodatkowej próbie lokalne utrwalenie znika niezależnie od oceny; kolejną formalną powtórkę wyznacza FSRS. Zmiana dnia zeruje lokalną kolejkę bez usunięcia historii.
 - [x] Przerwanie i późniejsze wznowienie nie gubi postępu ani nie nalicza ponownie już zapisanej oceny.
 - [x] Równoległa ocena, ponowione żądanie i błąd zapisu nie tworzą podwójnego zdarzenia ani częściowo zapisanej formalnej oceny.
 - [x] Znaczenie, którego minutowy termin FSRS nadejdzie podczas sesji, pojawia się jako należna powtórka, również po wcześniejszym lokalnym utrwaleniu.

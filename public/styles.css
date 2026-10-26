@@ -6,3 +6,4 @@
 .page-nav a.current{background:#eaf3e9;color:#2e704a}
 .lexical-menu{position:relative}.lexical-menu summary{list-style:none;padding:9px 12px;border-radius:8px;color:#728277;font-size:12px;font-weight:650;cursor:pointer}.lexical-menu summary::-webkit-details-marker{display:none}.lexical-menu summary:hover,.lexical-menu summary:focus-visible,.lexical-menu summary.current{background:#eaf3e9;color:#2e704a}.lexical-menu-items{position:absolute;right:0;top:calc(100% + 6px);z-index:10;min-width:220px;padding:6px;background:#fff;border:1px solid #dfe5da;border-radius:10px;box-shadow:0 10px 24px #2520181c}.page-nav .lexical-menu-items a{display:block}
 @media(max-width:640px){.page-nav{gap:0}.page-nav a{padding:8px 7px;font-size:11px}}
+@media(max-width:640px){.topbar{height:auto;min-height:66px;flex-wrap:wrap;gap:6px;padding:10px 12px}.page-nav{width:100%;justify-content:space-between;overflow-x:auto}.page-nav a,.lexical-menu{flex-shrink:0}}

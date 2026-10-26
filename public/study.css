@@ -1,0 +1,17 @@
+.study-counters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-width:600px;margin:16px 0}
+.study-counters-session{grid-template-columns:repeat(3,minmax(0,1fr));max-width:none;position:sticky;top:0;z-index:2;background:#fff;padding:8px 0}
+.study-counter{background:#f8faf6;border:1px solid #e0e7dd;border-radius:12px;padding:16px}
+.study-counter strong{display:block;color:#2d6247;font-size:28px;line-height:1.1}
+.study-counter span{display:block;color:#586b5c;font-size:13px;margin-top:6px}
+.study-sense{background:#fbfdf9;margin:18px 0}
+.study-sense h3{color:#24392b;font-size:26px;letter-spacing:-.04em;margin:0 0 6px}
+.study-sense .study-meta{color:#63806a;font-size:13px;margin:0 0 16px}
+.study-sense h4{color:#63806a;font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:20px 0 6px}
+.study-sense p,.study-sense li{font-size:14px;line-height:1.6;color:#586b5c;font-weight:400}
+.study-sense p{margin:0 0 8px}
+.study-sense ul{margin:0 0 8px;padding-left:22px}
+.study-ratings{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.lexical-panel .study-ratings button{min-height:58px;background:#233f55}
+.study-ratings button:first-child{background:#8f493d}
+.study-ratings button small{display:block;font-size:11px;font-weight:400;opacity:.8;margin-top:3px}
+@media(max-width:640px){.study-counters-session{grid-template-columns:repeat(2,minmax(0,1fr))}.study-ratings{grid-template-columns:repeat(2,minmax(0,1fr))}.study-counter{padding:12px}.study-counter strong{font-size:24px}}

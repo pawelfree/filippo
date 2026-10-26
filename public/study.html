@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Filippo · Nauka</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/lexical-senses.css" />
+    <link rel="stylesheet" href="/study.css" />
+    <script src="/assets/study.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">F</span><span>filippo <small>/ nauka</small></span></div>
+      <nav class="page-nav" aria-label="Nawigacja główna">
+        <a href="/">Taksonomia</a>
+        <a href="/profile.html">Profil kompetencyjny</a>
+        <details class="lexical-menu"><summary>Słownictwo</summary><div class="lexical-menu-items"><a href="/lexical-senses.html">Dodaj znaczenia</a><a href="/generation-proposals.html">Propozycje do przetworzenia</a><a href="/stored-lexical-senses.html">Zapisane znaczenia</a></div></details>
+        <a class="current" href="/study.html" aria-current="page">Nauka</a>
+      </nav>
+    </header>
+    <main class="shell lexical-shell">
+      <section class="intro"><div><p class="eyebrow">Włoskie słownictwo</p><h1>Nauka <em>słownictwa</em></h1><p>Powtarzaj należne znaczenia, utrwalaj te zapamiętane z trudem i poznawaj nowe.</p></div></section>
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+      <div id="error" class="error" role="alert" hidden></div>
+      <section id="overview" class="lexical-panel" aria-labelledby="overview-heading">
+        <div class="section-heading"><span>Przegląd</span><h2 id="overview-heading">Dziś do nauki</h2></div>
+        <div class="study-counters" aria-live="polite">
+          <div class="study-counter"><strong id="overview-due">—</strong><span>Do powtórki teraz</span></div>
+          <div class="study-counter"><strong id="overview-new">—</strong><span>Nowe znaczenia</span></div>
+        </div>
+        <div class="actions"><button id="start" type="button" disabled>Rozpocznij</button><button id="retry" class="secondary" type="button" hidden>Ponów zapis oceny</button></div>
+        <p id="overview-note" class="hint"></p>
+      </section>
+      <section id="session" class="lexical-panel" aria-labelledby="session-heading" hidden>
+        <div class="section-heading"><span>Sesja</span><h2 id="session-heading">Bieżące znaczenie</h2></div>
+        <div class="study-counters study-counters-session" aria-live="polite">
+          <div class="study-counter"><strong id="session-due">—</strong><span>Do powtórki</span></div>
+          <div class="study-counter"><strong id="session-reinforcement">—</strong><span>Do utrwalenia</span></div>
+          <div class="study-counter"><strong id="session-new">—</strong><span>Nowe znaczenia</span></div>
+        </div>
+        <article id="study-sense" class="sense-card study-sense"></article>
+        <div id="ratings" class="study-ratings" aria-label="Oceń zapamiętanie">
+          <button type="button" data-rating="1">Nie pamiętam <small>Again</small></button>
+          <button type="button" data-rating="2">Pamiętam z trudem <small>Hard</small></button>
+          <button type="button" data-rating="3">Pamiętam <small>Good</small></button>
+          <button type="button" data-rating="4">Łatwe <small>Easy</small></button>
+        </div>
+        <div class="actions"><button id="pause" class="secondary" type="button">Przerwij</button><button id="retry-session" class="secondary" type="button" hidden>Ponów zapis oceny</button></div>
+      </section>
+    </main>
+  </body>
+</html>

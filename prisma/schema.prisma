@@ -18,6 +18,7 @@ model LexicalSense {
   tasks       GeneratedTask[]
   fsrsStates  FsrsState[]
   fsrsReviews FsrsReview[]
+  studyAttempts StudyAttempt[]
 
   @@index([lexicalItem])
 }
@@ -64,8 +65,24 @@ model FsrsReview {
   configRevision  Int
   createdAt       DateTime     @default(now())
   lexicalSense    LexicalSense @relation(fields: [lexicalSenseId], references: [id], onDelete: Restrict)
+  studyAttempt    StudyAttempt?
 
   @@index([lexicalSenseId, reviewedAt])
+}
+
+model StudyAttempt {
+  eventId           String       @id
+  lexicalSenseId    String
+  presentationToken String
+  kind              String
+  rating            Int
+  reviewedAt        DateTime
+  dayKey            String
+  fsrsReviewEventId String?      @unique
+  lexicalSense      LexicalSense @relation(fields: [lexicalSenseId], references: [id], onDelete: Restrict)
+  fsrsReview        FsrsReview?  @relation(fields: [fsrsReviewEventId], references: [reviewEventId], onDelete: Restrict)
+
+  @@index([dayKey, lexicalSenseId, reviewedAt])
 }
 
 model FsrsConfigRevision {

@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, type FsrsConfigRevision, type FsrsReview } from '@prisma/client';
+import { Prisma, type FsrsConfigRevision, type FsrsReview, type FsrsState } from '@prisma/client';
 import { DefaultScheduler, Rating, type DefaultSchedulerCard, type DefaultSchedulerOptions, type DefaultSchedulerRevlog } from 'ts-fsrs';
 import { PrismaService } from '../database/prisma.service';
 
@@ -61,6 +61,15 @@ export class FsrsService {
 
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
+  readStoredCard(stored: FsrsState): DefaultSchedulerCard {
+    if (!stored.schedulerData || stored.configRevision === null) throw new ConflictException('Starszy stan FSRS wymaga migracji przed użyciem.');
+    try {
+      const card = restoreCard(stored.schedulerData, stored.lexicalSenseId);
+      if (card.dueAt.getTime() !== stored.dueAt.getTime()) throw new Error('Niespójny termin FSRS.');
+      return card;
+    } catch { throw new ConflictException('Starszy stan FSRS wymaga migracji przed użyciem.'); }
+  }
+
   private async configRow(): Promise<FsrsConfigRevision> {
     await this.prisma.fsrsConfigRevision.upsert({ where: { revision: 1 }, update: {}, create: { revision: 1, modelVersion, overridesJson: '{}' } });
     const latest = await this.prisma.fsrsConfigRevision.findFirst({ orderBy: { revision: 'desc' } });
@@ -92,10 +101,8 @@ export class FsrsService {
       if (await this.prisma.fsrsState.findFirst({ where: { lexicalSenseId } })) throw new ConflictException('Starszy stan FSRS wymaga migracji przed użyciem.');
       return null;
     }
-    if (!stored.schedulerData || stored.configRevision === null) throw new ConflictException('Starszy stan FSRS wymaga migracji przed użyciem.');
-    const card = restoreCard(stored.schedulerData, lexicalSenseId);
-    if (card.dueAt.getTime() !== stored.dueAt.getTime()) throw new Error('Termin FSRS nie odpowiada zapisanej karcie.');
-    return { lexicalSenseId, card, dueAt: card.dueAt, configRevision: stored.configRevision, updatedAt: stored.updatedAt };
+    const card = this.readStoredCard(stored);
+    return { lexicalSenseId, card, dueAt: card.dueAt, configRevision: stored.configRevision!, updatedAt: stored.updatedAt };
   }
 
   async getReviews(lexicalSenseId: string): Promise<Array<{ reviewEventId: string; rating: number; reviewedAt: Date; revlog: DefaultSchedulerRevlog; configRevision: number }>> {
@@ -134,7 +141,11 @@ export class FsrsService {
 
   private async applyReviewTransaction(input: FsrsReviewInput): Promise<FsrsReviewResult> {
     await this.configRow();
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction((tx) => this.applyReviewInTransaction(tx, input), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+
+  // The study flow writes its attempt in the same transaction as this review.
+  async applyReviewInTransaction(tx: Prisma.TransactionClient, input: FsrsReviewInput): Promise<FsrsReviewResult> {
       const existing = await tx.fsrsReview.findUnique({ where: { reviewEventId: input.reviewEventId } });
       if (existing) {
         if (existing.lexicalSenseId !== input.lexicalSenseId || existing.rating !== input.rating || existing.reviewedAt.getTime() !== input.reviewedAt.getTime()) throw new ConflictException('Identyfikator zdarzenia FSRS został użyty z inną oceną.');
@@ -145,10 +156,10 @@ export class FsrsService {
       if (!await tx.lexicalSense.findUnique({ where: { id: input.lexicalSenseId }, select: { id: true } })) throw new NotFoundException('Nie znaleziono LexicalSense.');
       const stored = await tx.fsrsState.findUnique({ where: { learnerId_lexicalSenseId: { learnerId, lexicalSenseId: input.lexicalSenseId } } });
       if (!stored && await tx.fsrsState.findFirst({ where: { lexicalSenseId: input.lexicalSenseId } })) throw new ConflictException('Starszy stan FSRS wymaga migracji przed użyciem.');
-      if (stored?.schedulerData === null) throw new ConflictException('Starszy stan FSRS wymaga migracji przed użyciem.');
+      if (stored) this.readStoredCard(stored);
       if (stored?.lastReviewAt && input.reviewedAt.getTime() <= stored.lastReviewAt.getTime()) throw new ConflictException('Starsza ocena FSRS wymaga odtworzenia historii we właściwej kolejności.');
       const scheduler = await DefaultScheduler({ version: modelVersion, ...JSON.parse(config.overridesJson) as Overrides });
-      const card = stored ? restoreCard(stored.schedulerData!, input.lexicalSenseId) : scheduler.newCard({ cardId: input.lexicalSenseId, now: input.reviewedAt });
+      const card = stored ? this.readStoredCard(stored) : scheduler.newCard({ cardId: input.lexicalSenseId, now: input.reviewedAt });
       const result = scheduler.review({ card, grade: input.rating, now: input.reviewedAt });
       const data = {
         dueAt: result.card.dueAt, stability: result.card.stability, difficulty: result.card.difficulty,
@@ -164,6 +175,5 @@ export class FsrsService {
         reviewedAt: input.reviewedAt, revlogJson: JSON.stringify(result.revlog), cardJson: JSON.stringify(result.card), configRevision: config.revision,
       } });
       return { card: result.card, revlog: result.revlog, dueAt: result.card.dueAt, configRevision: config.revision };
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 }

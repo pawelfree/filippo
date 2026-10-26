@@ -1,7 +1,8 @@
 # Ekran „Nauka” i ocenianie LexicalSense
 
-Status: active
+Status: implemented
 Created: 2026-10-26
+Implemented: 2026-10-26 — spełniono kryteria akceptacji i zweryfikowano wdrożenie lokalne.
 
 ## 📝 TLDR
 
@@ -48,7 +49,7 @@ Po każdym odczycie lub ocenie backend wybiera pierwszą niepustą grupę:
 
 ## 📝 Data Model
 
-Dodajemy `StudyAttempt`: `eventId` (unikalny klucz ponowienia żądania), `lexicalSenseId`, `kind` (`new`, `due`, `reinforcement`), `rating`, `reviewedAt` (czas serwera UTC), `dayKey` (lokalny dzień `Europe/Warsaw`), opcjonalny unikalny `fsrsReviewEventId` dla oceny przekazanej do FSRS. Rekord wskazuje istniejący `LexicalSense`; formalna ocena wskazuje odpowiadający `FsrsReview`. Indeks `(dayKey, lexicalSenseId, reviewedAt)` pozwala znaleźć ostatnią ocenę danego znaczenia w dniu. `eventId` zapobiega podwójnemu naliczeniu również dla lokalnych utrwaleń.
+Dodajemy `StudyAttempt`: `eventId` (unikalny klucz ponowienia żądania), `lexicalSenseId`, `presentationToken` (do sprawdzenia zgodności ponowienia), `kind` (`new`, `due`, `reinforcement`), `rating`, `reviewedAt` (czas serwera UTC), `dayKey` (lokalny dzień `Europe/Warsaw`), opcjonalny unikalny `fsrsReviewEventId` dla oceny przekazanej do FSRS. Rekord wskazuje istniejący `LexicalSense`; formalna ocena wskazuje odpowiadający `FsrsReview`. Indeks `(dayKey, lexicalSenseId, reviewedAt)` pozwala znaleźć ostatnią ocenę danego znaczenia w dniu. `eventId` zapobiega podwójnemu naliczeniu również dla lokalnych utrwaleń.
 
 Stan oczekującego utrwalenia wynika z ostatniego `StudyAttempt` danego znaczenia w aktualnym `dayKey`: `Again` oznacza oczekiwanie. O północy zmienia się `dayKey` aktywnej kolejki, więc wczorajsze błędy natychmiast przestają być dostępne; historia ocen nie jest kasowana. Nie powstaje tabela sesji ani kopia karty FSRS.
 
@@ -57,7 +58,7 @@ flowchart LR
     classDef newEntity fill:#2f6feb,color:#fff,stroke:#1b4fb0
     classDef existingEntity fill:#e5e7eb,color:#111,stroke:#9ca3af
 
-    entity_1["StudyAttempt: eventId, kind, rating, dayKey"]:::newEntity
+    entity_1["StudyAttempt: eventId, presentationToken, kind, rating, dayKey"]:::newEntity
     entity_2["LexicalSense: id"]:::existingEntity
     entity_3["FsrsReview: reviewEventId"]:::existingEntity
 
@@ -67,7 +68,7 @@ flowchart LR
 
 Relacja do `FsrsReview` występuje tylko dla `new` i `due`. Migracja wyłącznie dodaje tabelę i indeks; istniejące znaczenia, karty oraz historia FSRS pozostają bez zmian. Nie przechowujemy odpowiedzi OpenAI ani danych nowego użytkownika.
 
-Wersja interaktywna grafu: [model danych ekranu Nauka](../data-model/2026-10-26-study-screen.html).
+Wersja interaktywna grafu: [model danych ekranu Nauka](../../data-model/2026-10-26-study-screen.html).
 
 ## 📝 API Contracts
 
@@ -83,7 +84,7 @@ Token jest warunkiem zgodności, a nie uprawnieniem: backend ponownie sprawdza s
 
 ## 📝 UI/UX
 
-- Ekran startowy i sesja „Nauka” muszą kontynuować obecny styl wizualny aplikacji: wspólny nagłówek i nawigację, typografię, paletę barw, odstępy, karty, przyciski oraz zachowanie na wąskich ekranach. Punktem odniesienia są istniejące widoki słownictwa i ich style w [`styles.css`](../../public/styles.css) oraz [`lexical-senses.css`](../../public/lexical-senses.css); nowy ekran nie wprowadza osobnego motywu.
+- Ekran startowy i sesja „Nauka” muszą kontynuować obecny styl wizualny aplikacji: wspólny nagłówek i nawigację, typografię, paletę barw, odstępy, karty, przyciski oraz zachowanie na wąskich ekranach. Punktem odniesienia są istniejące widoki słownictwa i ich style w [`styles.css`](../../../public/styles.css) oraz [`lexical-senses.css`](../../../public/lexical-senses.css); nowy ekran nie wprowadza osobnego motywu.
 - Główna nawigacja zyskuje osobne „Nauka”. Strona startowa pokazuje **dwie liczby**: „Do powtórki teraz” i „Nowe znaczenia”, oraz jeden przycisk „Rozpocznij” albo „Kontynuuj”. Nie ma tam listy znaczeń ani wyboru liczby elementów. Jeżeli oba liczniki są zerowe, lecz pozostało utrwalenie, przycisk nadal pozwala kontynuować; gdy nic nie jest dostępne, jest nieaktywny.
 - W sesji jeden sens jest pokazany na raz. Cały dostępny zapisany wpis jest widoczny od razu: włoski zapis, część mowy, włoskie i polskie wyjaśnienie oraz pozostałe zapisane szczegóły, gdy występują. Starszy rekord bez `detailsJson` ma czytelny widok podstawowy, nie pustą kartę.
 - Nad kartą stale widać **trzy rozłączne liczniki**: należne powtórki, oczekujące utrwalenia i nowe znaczenia. Znaczenie należne FSRS jest liczone jako powtórka, nie drugi raz jako utrwalenie. Liczniki obejmują aktualną kartę do chwili przyjęcia oceny i zmieniają się także po nadejściu kolejnego `dueAt` bez ręcznego przeładowania.
@@ -128,15 +129,15 @@ Brak limitu nowych znaczeń może powiększyć przyszłe zaległości; przerwani
 
 ## Acceptance Criteria
 
-- [ ] Ekran startowy i sesja „Nauka” zachowują styl istniejących ekranów słownictwa: ten sam nagłówek i nawigację, typografię, paletę, karty, przyciski i reguły układu mobilnego; porównanie obu widoków na wąskim i szerokim ekranie nie wykazuje odrębnego motywu.
-- [ ] Ekran startowy pokazuje odrębne liczniki i umożliwia rozpoczęcie lub wznowienie, gdy są dostępne elementy, bez listy znaczeń i wyboru wielkości partii.
-- [ ] W sesji cały wpis jest widoczny od razu, a liczniki pozostałych powtórek, nowych znaczeń i utrwaleń pozostają widoczne i aktualizują się po ocenach.
-- [ ] Ocena nowego lub już należnego znaczenia aktualizuje FSRS; utrwalenie przed kolejnym terminem FSRS aktualizuje tylko kolejkę sesji.
-- [ ] Wszystkie znaczenia z `dueAt <= teraz` mają pierwszeństwo przed utrwaleniami, a te przed nowymi znaczeniami. `Again` utrzymuje znaczenie w lokalnej kolejce do `Hard`, `Good` lub `Easy`; zmiana dnia ją zeruje bez usunięcia historii.
-- [ ] Przerwanie i późniejsze wznowienie nie gubi postępu ani nie nalicza ponownie już zapisanej oceny.
-- [ ] Równoległa ocena, ponowione żądanie i błąd zapisu nie tworzą podwójnego zdarzenia ani częściowo zapisanej formalnej oceny.
-- [ ] Znaczenie, którego minutowy termin FSRS nadejdzie podczas sesji, pojawia się jako należna powtórka, również po wcześniejszym lokalnym utrwaleniu.
-- [ ] Widok działa bez generowanych ćwiczeń i nie zmienia jednostki harmonogramowania z `LexicalSense` na `LexicalItem`.
+- [x] Ekran startowy i sesja „Nauka” zachowują styl istniejących ekranów słownictwa: ten sam nagłówek i nawigację, typografię, paletę, karty, przyciski i reguły układu mobilnego; porównanie obu widoków na wąskim i szerokim ekranie nie wykazuje odrębnego motywu.
+- [x] Ekran startowy pokazuje odrębne liczniki i umożliwia rozpoczęcie lub wznowienie, gdy są dostępne elementy, bez listy znaczeń i wyboru wielkości partii.
+- [x] W sesji cały wpis jest widoczny od razu, a liczniki pozostałych powtórek, nowych znaczeń i utrwaleń pozostają widoczne i aktualizują się po ocenach.
+- [x] Ocena nowego lub już należnego znaczenia aktualizuje FSRS; utrwalenie przed kolejnym terminem FSRS aktualizuje tylko kolejkę sesji.
+- [x] Wszystkie znaczenia z `dueAt <= teraz` mają pierwszeństwo przed utrwaleniami, a te przed nowymi znaczeniami. `Again` utrzymuje znaczenie w lokalnej kolejce do `Hard`, `Good` lub `Easy`; zmiana dnia ją zeruje bez usunięcia historii.
+- [x] Przerwanie i późniejsze wznowienie nie gubi postępu ani nie nalicza ponownie już zapisanej oceny.
+- [x] Równoległa ocena, ponowione żądanie i błąd zapisu nie tworzą podwójnego zdarzenia ani częściowo zapisanej formalnej oceny.
+- [x] Znaczenie, którego minutowy termin FSRS nadejdzie podczas sesji, pojawia się jako należna powtórka, również po wcześniejszym lokalnym utrwaleniu.
+- [x] Widok działa bez generowanych ćwiczeń i nie zmienia jednostki harmonogramowania z `LexicalSense` na `LexicalItem`.
 
 ## Open Questions
 
@@ -144,5 +145,6 @@ Brak blokujących. Użytkownik wybrał wspólną specyfikację, automatyczną ko
 
 ## Related Records
 
-- [Integracja FSRS z LexicalSense](implemented/2026-10-26-fsrs-integration.md)
-- [Słownik domenowy](../../GLOSSARY.md)
+- [Integracja FSRS z LexicalSense](2026-10-26-fsrs-integration.md)
+- [Słownik domenowy](../../../GLOSSARY.md)
+- [Przebieg wdrożenia](../../runs/2026-10-26-study-screen-implementation.md)

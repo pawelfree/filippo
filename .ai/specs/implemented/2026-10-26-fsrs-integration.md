@@ -1,8 +1,9 @@
 # Integracja FSRS z LexicalSense
 
-Status: active  
-Created: 2026-10-26  
-Źródło: [opis integracji FSRS](../docs/fsrs_integration.md)
+Status: implemented
+Created: 2026-10-26
+Implemented: 2026-10-26 — spełniono dziewięć kryteriów po wyborze przez użytkownika przypiętej wersji beta; przeniesiono do `implemented`.
+Źródło: [opis integracji FSRS](../../docs/fsrs_integration.md)
 
 ## Problem Statement
 
@@ -63,15 +64,15 @@ Backend przyjmuje ocenione zdarzenie dotyczące `LexicalSense` z jedną z cztere
 
 ## Acceptance Criteria
 
-- [ ] `LexicalSense` może istnieć bez stanu i historii FSRS.
-- [ ] Pierwsza gotowa ocena tworzy stan, dziennik i termin powtórki; każda kolejna aktualizuje ten sam stan dla tego znaczenia.
-- [ ] Wszystkie cztery oceny są obsługiwane bez mapowania poprawna/niepoprawna.
-- [ ] Stan, historia i termin są spójne po zapisie, ponowieniu i restarcie.
-- [ ] To samo zdarzenie nie nalicza powtórki ponownie; sprzeczny duplikat jest odrzucany.
-- [ ] Równoległe lub opóźnione zdarzenia nie nadpisują nowszego stanu.
-- [ ] Pusta konfiguracja używa parametrów przypiętej wersji; poprawna nowa rewizja działa dla następnych ocen, a niepoprawna jest odrzucana.
-- [ ] Odczyt stanu nie zmienia karty i zwraca termin pochodzący z karty FSRS.
-- [ ] Wybrana wersja pakietu i modelu jest przypięta, zgodna z Node używanym przez aplikację i świadomie oznaczona jako beta.
+- [x] `LexicalSense` może istnieć bez stanu i historii FSRS.
+- [x] Pierwsza gotowa ocena tworzy stan, dziennik i termin powtórki; każda kolejna aktualizuje ten sam stan dla tego znaczenia.
+- [x] Wszystkie cztery oceny są obsługiwane bez mapowania poprawna/niepoprawna.
+- [x] Stan, historia i termin są spójne po zapisie, ponowieniu i restarcie.
+- [x] To samo zdarzenie nie nalicza powtórki ponownie; sprzeczny duplikat jest odrzucany.
+- [x] Równoległe lub opóźnione zdarzenia nie nadpisują nowszego stanu.
+- [x] Pusta konfiguracja używa parametrów przypiętej wersji; poprawna nowa rewizja działa dla następnych ocen, a niepoprawna jest odrzucana.
+- [x] Odczyt stanu nie zmienia karty i zwraca termin pochodzący z karty FSRS.
+- [x] Wybrana wersja pakietu i modelu jest przypięta, zgodna z Node używanym przez aplikację i świadomie oznaczona jako beta.
 
 ## Out of Scope
 
@@ -83,9 +84,10 @@ Backend przyjmuje ocenione zdarzenie dotyczące `LexicalSense` z jedną z cztere
 ## Further Notes
 
 - Słownik domenowy rozróżnia `LexicalSense`, zadanie i jednostkę FSRS; nazewnictwo w implementacji powinno zachować te znaczenia.
-- Aktualny model danych ma już stan FSRS powiązany z uczącym się i `LexicalSense` oraz oceny powiązane z zadaniem, ale nie utrwala jeszcze pełnego kontraktu karty i zdarzenia opisanego powyżej.
+- Przed wdrożeniem model danych miał stan FSRS powiązany z uczącym się i `LexicalSense` oraz oceny powiązane z zadaniem, ale nie utrwalał pełnego kontraktu karty i zdarzenia.
+- Migracja rozszerza istniejącą tabelę `FsrsState`, a historia ocen FSRS ma osobną tabelę od dotychczasowego `Review` związanego z zadaniem. W lokalnej bazie podczas wdrożenia było 0 rekordów w `FsrsState` i 0 w `Review`; nie było wcześniejszego postępu do przeliczenia. Ewentualny stary, niepełny stan jest jawnie blokowany, ponieważ nie da się odtworzyć karty FSRS-7 z samych pól zbiorczych.
 - Na dzień 2026-10-26 `ts-fsrs` v6 figuruje w npm jako beta; użytkownik wybrał przypięcie `6.0.0-beta.15`, a projekt podniósł wymaganie Node do `>=24`. Źródła: [wydania npm](https://www.npmjs.com/package/ts-fsrs?activeTab=versions), [oficjalne README](https://github.com/open-spaced-repetition/ts-fsrs/blob/main/README.md).
 
 ## Open Questions
 
-- Późniejsza aktualizacja z `6.0.0-beta.15` do stabilnego v6 wymaga osobnej kontroli zgodności stanu.
+Brak blokujących. Późniejsza aktualizacja z `6.0.0-beta.15` do stabilnego v6 wymaga osobnej kontroli zgodności stanu.

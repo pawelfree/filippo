@@ -2,6 +2,8 @@
 
 Read this index before working on related areas. Add concise, evidence-based lessons here after a bug fix or other reusable finding. Put longer explanations in `lessons/YYYY-MM-DD-slug.md` and link them from the entry.
 
+- Przy zmianie modelu FSRS zachowuj pełną kartę i dziennik wraz z rewizją konfiguracji; pola zbiorcze nie wystarczają do wiernego odtworzenia stanu. Odrzuć niepełny stary rekord zamiast nadpisać go nową kartą. Dotyczy [integracji FSRS](runs/2026-10-26-fsrs-integration-implementation.md).
+
 - Dla długiego zadania AI zwracaj `202` po zapisaniu zadania, a wynik i decyzje użytkownika utrwalaj w bazie; pamięciowy draft wymusza utrzymywanie otwartej karty i ginie po restarcie. Zapis znaczenia oraz usunięcie oczekującej propozycji wykonuj w jednej transakcji. Dotyczy generowania LexicalSense; zobacz [run](runs/2026-10-26-finish-asynchronous-lexical-sense-generation.md).
 
 - Keep CSS for a navigation component shared by multiple pages in an asset loaded by every page. The LexicalSense page rendered browser-default links because `.page-nav` lived only in `profile.css`; moving the rules to shared `styles.css` restored styling across all three views. Applies to shared page chrome; see the [fix run](runs/2026-10-25-lexical-navigation-style-fix.md).

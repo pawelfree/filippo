@@ -76,6 +76,18 @@ test('FSRS service persists reviews, restores cards, rejects conflicting and lat
     const repeatedAfterConfig = await service.applyReview({ reviewEventId: 'one', lexicalSenseId: first.id, rating: Rating.Good, reviewedAt: at });
     assert.deepEqual(repeatedAfterConfig, firstReview);
 
+    const otherInstance = new FsrsService(prisma as never);
+    const crossInstance = await Promise.allSettled([
+      service.applyReview({ reviewEventId: 'seven', lexicalSenseId: first.id, rating: Rating.Good, reviewedAt: new Date(at.getTime() + 4 * 86_400_000) }),
+      otherInstance.applyReview({ reviewEventId: 'eight', lexicalSenseId: first.id, rating: Rating.Easy, reviewedAt: new Date(at.getTime() + 5 * 86_400_000) }),
+    ]);
+    const successes = crossInstance.filter((outcome): outcome is PromiseFulfilledResult<Awaited<ReturnType<FsrsService['applyReview']>>> => outcome.status === 'fulfilled');
+    for (const outcome of crossInstance) if (outcome.status === 'rejected') assert.equal((outcome.reason as { status?: number }).status, 409);
+    assert.ok(successes.length >= 1);
+    assert.equal(await prisma.fsrsReview.count({ where: { lexicalSenseId: first.id } }), 4 + successes.length);
+    const finalState = await service.getState(first.id);
+    assert.ok(successes.some((outcome) => outcome.value.dueAt.getTime() === finalState?.dueAt.getTime()));
+
     await prisma.$disconnect();
     prisma = new PrismaClient();
     const restarted = new FsrsService(prisma as never);
@@ -83,9 +95,9 @@ test('FSRS service persists reviews, restores cards, rejects conflicting and lat
     assert.ok(restored);
     assert.ok(restored.card.dueAt instanceof Date);
     assert.ok(restored.card.lastReviewAt instanceof Date);
-    assert.equal(restored.dueAt.getTime(), concurrent[1].dueAt.getTime());
+    assert.equal(restored.dueAt.getTime(), finalState.dueAt.getTime());
     assert.equal((await restarted.getConfig()).revision, 2);
-    assert.equal((await restarted.getReviews(first.id)).length, 4);
+    assert.equal((await restarted.getReviews(first.id)).length, 4 + successes.length);
   } finally {
     await prisma?.$disconnect();
     if (oldUrl === undefined) delete process.env.DATABASE_URL; else process.env.DATABASE_URL = oldUrl;

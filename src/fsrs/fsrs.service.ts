@@ -20,7 +20,7 @@ function parseDate(value: unknown): Date {
 function restoreCard(json: string, senseId: string): DefaultSchedulerCard {
   const value = JSON.parse(json) as Record<string, unknown>;
   const numeric = ['stability', 'stabilityFast', 'difficulty', 'state', 'reps', 'lapses', 'scheduledDays', 'learningStep'];
-  if (!value || typeof value !== 'object' || value.cardId !== senseId || typeof value.scheduleStatus !== 'string' || numeric.some((key) => typeof value[key] !== 'number' || !Number.isFinite(value[key]))) {
+  if (!value || typeof value !== 'object' || value.cardId !== senseId || !['new', 'learning', 'review'].includes(String(value.scheduleStatus)) || numeric.some((key) => typeof value[key] !== 'number' || !Number.isFinite(value[key])) || ![0, 1, 2, 3].includes(value.state as number)) {
     throw new Error('Niepoprawna karta FSRS w bazie danych.');
   }
   value.dueAt = parseDate(value.dueAt);
@@ -28,9 +28,10 @@ function restoreCard(json: string, senseId: string): DefaultSchedulerCard {
   return value as DefaultSchedulerCard;
 }
 
-function restoreRevlog(json: string): DefaultSchedulerRevlog {
+function restoreRevlog(json: string, senseId: string): DefaultSchedulerRevlog {
   const value = JSON.parse(json) as Record<string, unknown>;
-  if (!value || typeof value !== 'object' || typeof value.rating !== 'number' || typeof value.cardId !== 'string') throw new Error('Niepoprawny dziennik FSRS w bazie danych.');
+  const numeric = ['stability', 'stabilityFast', 'difficulty', 'scheduledDays', 'learningStep'];
+  if (!value || typeof value !== 'object' || value.cardId !== senseId || ![Rating.Again, Rating.Hard, Rating.Good, Rating.Easy].includes(value.rating as FsrsRating) || !['new', 'learning', 'review'].includes(String(value.scheduleStatus)) || ![0, 1, 2, 3].includes(value.state as number) || numeric.some((key) => typeof value[key] !== 'number' || !Number.isFinite(value[key]))) throw new Error('Niepoprawny dziennik FSRS w bazie danych.');
   value.dueAt = parseDate(value.dueAt);
   value.reviewTime = parseDate(value.reviewTime);
   if (value.lastReviewAt !== null && value.lastReviewAt !== undefined) value.lastReviewAt = parseDate(value.lastReviewAt);
@@ -99,12 +100,12 @@ export class FsrsService {
 
   async getReviews(lexicalSenseId: string): Promise<Array<{ reviewEventId: string; rating: number; reviewedAt: Date; revlog: DefaultSchedulerRevlog; configRevision: number }>> {
     const rows = await this.prisma.fsrsReview.findMany({ where: { lexicalSenseId }, orderBy: { reviewedAt: 'asc' } });
-    return rows.map((row) => ({ reviewEventId: row.reviewEventId, rating: row.rating, reviewedAt: row.reviewedAt, revlog: restoreRevlog(row.revlogJson), configRevision: row.configRevision }));
+    return rows.map((row) => ({ reviewEventId: row.reviewEventId, rating: row.rating, reviewedAt: row.reviewedAt, revlog: restoreRevlog(row.revlogJson, lexicalSenseId), configRevision: row.configRevision }));
   }
 
   private fromReview(row: FsrsReview): FsrsReviewResult {
     const card = restoreCard(row.cardJson, row.lexicalSenseId);
-    return { card, revlog: restoreRevlog(row.revlogJson), dueAt: card.dueAt, configRevision: row.configRevision };
+    return { card, revlog: restoreRevlog(row.revlogJson, row.lexicalSenseId), dueAt: card.dueAt, configRevision: row.configRevision };
   }
 
   async applyReview(input: FsrsReviewInput): Promise<FsrsReviewResult> {

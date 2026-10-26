@@ -109,6 +109,36 @@ test('study queue persists formal and local attempts, retries safely, and rolls 
     await restoredFsrs.applyReview({ reviewEventId: 'old-review', lexicalSenseId: fourth.id, rating: Rating.Good, reviewedAt: new Date(Date.now() - 60_000) });
     await prisma.studyAttempt.create({ data: { eventId: randomUUID(), lexicalSenseId: fourth.id, presentationToken: 'b'.repeat(64), kind: 'reinforcement', rating: Rating.Again, reviewedAt: new Date(Date.now() - 60_000), dayKey: '1900-01-01' } });
     assert.equal((await resumed.overview()).reinforcementCount, 0);
+
+    const fifth = await prisma.lexicalSense.create({ data: { lexicalItem: 'sole', definition: 'stella' } });
+    const beforeReset = await resumed.next();
+    assert.equal(beforeReset.candidate?.lexicalSenseId, fifth.id);
+    const configBeforeReset = await restoredFsrs.getConfig();
+    const attemptsBeforeReset = await prisma.studyAttempt.count();
+    const reviewsBeforeReset = await prisma.fsrsReview.count();
+    const statesBeforeReset = await prisma.fsrsState.count();
+    await prisma.$executeRawUnsafe("CREATE TRIGGER abort_study_reset BEFORE DELETE ON FsrsReview BEGIN SELECT RAISE(ABORT, 'forced'); END");
+    await assert.rejects(() => resumed.reset());
+    assert.equal(await prisma.studyAttempt.count(), attemptsBeforeReset);
+    assert.equal(await prisma.fsrsReview.count(), reviewsBeforeReset);
+    assert.equal(await prisma.fsrsState.count(), statesBeforeReset);
+    assert.equal((await restoredFsrs.getConfig()).revision, configBeforeReset.revision);
+    await prisma.$executeRawUnsafe('DROP TRIGGER abort_study_reset');
+    const afterReset = await resumed.reset();
+    assert.deepEqual(afterReset, { dueCount: 0, reinforcementCount: 0, newCount: 5, nextDueAt: null });
+    assert.equal(await prisma.lexicalSense.count(), 5);
+    assert.equal(await prisma.fsrsState.count(), 0);
+    assert.equal(await prisma.fsrsReview.count(), 0);
+    assert.equal(await prisma.studyAttempt.count(), 0);
+    const configAfterReset = await restoredFsrs.getConfig();
+    assert.deepEqual(configAfterReset.overrides, configBeforeReset.overrides);
+    assert.equal(configAfterReset.revision, configBeforeReset.revision + 1);
+    await assert.rejects(() => resumed.record({ eventId: randomUUID(), lexicalSenseId: fifth.id, presentationToken: beforeReset.candidate!.presentationToken, rating: Rating.Good }), (error: any) => error.status === 409);
+    assert.equal(await prisma.fsrsState.count(), 0);
+    const fresh = await resumed.next();
+    assert.notEqual(fresh.candidate?.presentationToken, beforeReset.candidate?.presentationToken);
+    await resumed.record({ eventId: randomUUID(), lexicalSenseId: fresh.candidate!.lexicalSenseId, presentationToken: fresh.candidate!.presentationToken, rating: Rating.Good });
+    assert.equal(await prisma.fsrsState.count(), 1);
   } finally {
     await prisma?.$disconnect();
     if (oldUrl === undefined) delete process.env.DATABASE_URL; else process.env.DATABASE_URL = oldUrl;

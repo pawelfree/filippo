@@ -85,3 +85,51 @@ test('uncertain transport failure keeps the same event for a safe retry', async 
     assert.equal(window.localStorage.getItem('filippo.study.pendingAttempt'), null);
   } finally { dom.window.close(); }
 });
+
+test('study reset requires confirmation and returns to fresh counters', async () => {
+  const html = await readFile(join(process.cwd(), 'public/study.html'), 'utf8');
+  const script = await readFile(join(process.cwd(), 'dist/browser/study.js'), 'utf8');
+  const dom = new JSDOM(html, { url: 'http://localhost/study.html', runScripts: 'outside-only' });
+  try {
+    const { window } = dom;
+    const calls: string[] = [];
+    let confirmed = false;
+    let failReset = true;
+    window.confirm = () => confirmed;
+    (window as any).fetch = async (path: string, options?: RequestInit) => {
+      calls.push(`${options?.method || 'GET'} ${path}`);
+      const reset = path.endsWith('/reset');
+      if (reset && failReset) return { ok: false, status: 500, json: async () => ({ message: 'Nie udało się wyczyścić postępu.' }) };
+      const data = reset
+        ? { dueCount: 0, reinforcementCount: 0, newCount: 2, nextDueAt: null }
+        : path.endsWith('/next')
+          ? { dueCount: 1, reinforcementCount: 0, newCount: 1, nextDueAt: null, candidate: { lexicalSenseId: 'one', kind: 'due', presentationToken: 'a'.repeat(64), sense: { lexical_item_it: 'casa', definition_it: 'abitazione' } } }
+          : { dueCount: 1, reinforcementCount: 0, newCount: 1, nextDueAt: null };
+      return { ok: true, json: async () => data };
+    };
+    window.eval(script);
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+    await settle();
+    (window.document.getElementById('start') as HTMLElement).click();
+    await settle();
+    (window.document.querySelector('#session [data-reset-study]') as HTMLElement).click();
+    await settle();
+    assert.equal(calls.filter((call) => call === 'POST /api/study/reset').length, 0);
+    confirmed = true;
+    (window.document.querySelector('#session [data-reset-study]') as HTMLElement).click();
+    await settle();
+    assert.equal(calls.filter((call) => call === 'POST /api/study/reset').length, 1);
+    assert.equal(window.document.getElementById('session')!.hidden, false);
+    assert.match(window.document.getElementById('error')!.textContent!, /Nie udało się wyczyścić postępu/);
+    failReset = false;
+    (window.document.querySelector('#session [data-reset-study]') as HTMLElement).click();
+    await settle();
+    assert.equal(calls.filter((call) => call === 'POST /api/study/reset').length, 2);
+    assert.equal(window.document.getElementById('session')!.hidden, true);
+    assert.equal(window.document.getElementById('overview')!.hidden, false);
+    assert.equal(window.document.getElementById('overview-due')!.textContent, '0');
+    assert.equal(window.document.getElementById('overview-new')!.textContent, '2');
+    assert.equal(window.localStorage.getItem('filippo.study.started'), null);
+    assert.match(window.document.getElementById('status')!.textContent!, /Postęp nauki został wyczyszczony/);
+  } finally { dom.window.close(); }
+});

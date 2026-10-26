@@ -19,8 +19,8 @@ function dayKey(now: Date): string {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
-function token(id: string, kind: Kind, version: number | null, lastEventId: string | null, day: string): string {
-  return createHash('sha256').update(JSON.stringify([id, kind, version, lastEventId, day])).digest('hex');
+function token(id: string, kind: Kind, version: number | null, lastEventId: string | null, day: string, configRevision: number): string {
+  return createHash('sha256').update(JSON.stringify([id, kind, version, lastEventId, day, configRevision])).digest('hex');
 }
 
 function publicSense(sense: LexicalSense): Record<string, unknown> {
@@ -47,11 +47,12 @@ export class StudyService {
 
   private async snapshot(db: StudyDb, now: Date): Promise<Next> {
     const day = dayKey(now);
-    const [due, future, newCount, latest] = await Promise.all([
+    const [due, future, newCount, latest, config] = await Promise.all([
       db.fsrsState.findMany({ where: { learnerId, dueAt: { lte: now } }, include: { lexicalSense: true }, orderBy: [{ dueAt: 'asc' }, { lexicalSenseId: 'asc' }] }),
       db.fsrsState.findFirst({ where: { learnerId, dueAt: { gt: now } }, select: { dueAt: true }, orderBy: { dueAt: 'asc' } }),
       db.lexicalSense.count({ where: { fsrsStates: { none: {} } } }),
       this.latestAttempts(db, day),
+      db.fsrsConfigRevision.findFirst({ orderBy: { revision: 'desc' }, select: { revision: true } }),
     ]);
     const incomplete = await db.fsrsState.findFirst({ where: { OR: [{ learnerId: { not: learnerId } }, { schedulerData: null }, { configRevision: null }] }, select: { id: true } });
     if (incomplete) throw new ConflictException('Starszy stan FSRS wymaga migracji przed użyciem.');
@@ -67,17 +68,31 @@ export class StudyService {
       dueCount: due.length, reinforcementCount: reinforcement.length, newCount, nextDueAt: future?.dueAt ?? null,
       candidate: selected ? {
         lexicalSenseId: selected.sense.id, sense: publicSense(selected.sense), kind: selected.kind,
-        presentationToken: token(selected.sense.id, selected.kind, selected.state?.version ?? null, latest.get(selected.sense.id)?.eventId ?? null, day),
+        presentationToken: token(selected.sense.id, selected.kind, selected.state?.version ?? null, latest.get(selected.sense.id)?.eventId ?? null, day, config?.revision ?? 0),
       } : null,
     };
   }
 
   async overview(): Promise<Counts> {
+    await this.fsrs.getConfig();
     const { candidate: _candidate, ...counts } = await this.snapshot(this.prisma, new Date());
     return counts;
   }
 
-  async next(): Promise<Next> { return this.snapshot(this.prisma, new Date()); }
+  async next(): Promise<Next> { await this.fsrs.getConfig(); return this.snapshot(this.prisma, new Date()); }
+
+  async reset(): Promise<Counts> {
+    await this.fsrs.getConfig();
+    await this.prisma.$transaction(async (tx) => {
+      const config = await tx.fsrsConfigRevision.findFirst({ orderBy: { revision: 'desc' } });
+      if (!config) throw new ConflictException('Brak konfiguracji FSRS.');
+      await tx.studyAttempt.deleteMany();
+      await tx.fsrsReview.deleteMany();
+      await tx.fsrsState.deleteMany();
+      await tx.fsrsConfigRevision.create({ data: { revision: config.revision + 1, modelVersion: config.modelVersion, overridesJson: config.overridesJson } });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    return this.overview();
+  }
 
   private async currentCandidate(db: StudyDb, id: string, now: Date): Promise<{ kind: Kind; state: FsrsState | null; lastEventId: string | null }> {
     const sense = await db.lexicalSense.findUnique({ where: { id }, select: { id: true } });
@@ -109,8 +124,10 @@ export class StudyService {
           const now = new Date();
           const current = await this.currentCandidate(tx, id, now);
           const day = dayKey(now);
-          const expected = token(id, current.kind, current.state?.version ?? null, current.lastEventId, day);
-          const promoted = current.kind === 'due' && current.state && presentationToken === token(id, 'reinforcement', current.state.version, current.lastEventId, day);
+          const config = await tx.fsrsConfigRevision.findFirst({ orderBy: { revision: 'desc' }, select: { revision: true } });
+          const revision = config?.revision ?? 0;
+          const expected = token(id, current.kind, current.state?.version ?? null, current.lastEventId, day, revision);
+          const promoted = current.kind === 'due' && current.state && presentationToken === token(id, 'reinforcement', current.state.version, current.lastEventId, day, revision);
           if (presentationToken !== expected && !promoted) throw new ConflictException('Wyświetlone znaczenie jest nieaktualne.');
           const highestPriority = (await this.snapshot(tx, now)).candidate;
           if (highestPriority?.lexicalSenseId !== id) throw new ConflictException('Kolejka nauki zmieniła się.');

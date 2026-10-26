@@ -185,7 +185,11 @@ export class LexicalSensesService implements OnModuleInit, OnModuleDestroy {
         const proposal = await tx.lexicalSenseGenerationProposal.findUnique({ where: { id } });
         if (!proposal) throw new NotFoundException('Nie znaleziono propozycji.');
         const record = { ...JSON.parse(proposal.senseJson) as SenseRecord, definition_pl: (body.definition_pl as string).trim() };
-        if (!validateSense(record)) throw new BadRequestException('Poprawiony LexicalSense nie spełnia schematu.');
+        if (!validateSense(record)) {
+          const issue = validateSense.errors?.[0];
+          const field = issue?.instancePath?.replace(/^\//, '') || 'rekord';
+          throw new BadRequestException(`Nie można zapisać znaczenia (${field}: ${issue?.message || 'niepoprawne dane'}).`);
+        }
         const candidates = await tx.lexicalSense.findMany({ where: { language: 'it' } });
         const duplicate = candidates.find((candidate) => equivalent(candidate, record));
         if (duplicate) return { status: 'conflict', id: duplicate.id };

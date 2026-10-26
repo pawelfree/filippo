@@ -25,18 +25,27 @@ const load = async () => { try {
     header.append(el('h3', `${p.lexical_item_it} · ${p.part_of_speech}`), actions);
     card.append(header, el('p', p.definition_it));
     const definition = document.createElement('textarea'); definition.value = p.definition_pl; definition.rows = 2; card.append(definition);
-    const result = el('div'); const submit = async (confirmed: boolean) => {
-      const verdict = await request('/api/lexical-senses/generation-proposals/' + p.id + '/save', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ definition_pl: definition.value, confirmedDistinct: confirmed }) });
-      if (verdict.status === 'saved') { status.textContent = 'Zapisano znaczenie.'; await load(); return; }
-      if (verdict.status === 'conflict') { result.textContent = 'To znaczenie jest już zapisane w bazie.'; return; }
-      result.replaceChildren(el('p', 'Podobne znaczenie w bazie:'));
-      for (const existing of verdict.existing || p.matches || []) result.append(el('p', `${existing.part_of_speech || '—'} · ${existing.definition_it}${existing.definition_pl ? ' · ' + existing.definition_pl : ''}`));
-      const force = el('button', 'Zapisz mimo podobieństwa'); force.addEventListener('click', () => { void submit(true); });
-      const leave = el('button', 'Pozostaw bez zmian'); leave.addEventListener('click', () => result.replaceChildren());
-      result.append(force, leave);
+    const warnings = (p.validationWarnings || []).flatMap((entry: any) => entry.warnings || []);
+    if (!p.examples?.length) warnings.push('Brak przykładu użycia.');
+    if (warnings.length) { const box = el('div'); box.className = 'deferred'; box.append(el('strong', 'Braki w propozycji:')); const list = document.createElement('ul'); for (const warning of warnings) list.append(el('li', warning)); box.append(list); card.append(box); }
+    const result = el('div'); result.setAttribute('role', 'alert'); let saving = false;
+    const submit = async (confirmed: boolean) => {
+      if (saving) return;
+      saving = true; save.disabled = true; reject.disabled = true; result.className = ''; result.replaceChildren();
+      try {
+        const verdict = await request('/api/lexical-senses/generation-proposals/' + p.id + '/save', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ definition_pl: definition.value, confirmedDistinct: confirmed }) });
+        if (verdict.status === 'saved') { await load(); status.textContent = 'Zapisano znaczenie.'; return; }
+        if (verdict.status === 'conflict') { result.textContent = 'To znaczenie jest już zapisane w bazie.'; return; }
+        result.append(el('p', 'Podobne znaczenie w bazie:'));
+        for (const existing of verdict.existing || p.matches || []) result.append(el('p', `${existing.part_of_speech || '—'} · ${existing.definition_it}${existing.definition_pl ? ' · ' + existing.definition_pl : ''}`));
+        const force = el('button', 'Zapisz mimo podobieństwa'); force.addEventListener('click', () => { void submit(true); });
+        const leave = el('button', 'Pozostaw bez zmian'); leave.addEventListener('click', () => result.replaceChildren());
+        result.append(force, leave);
+      } catch (cause) { result.textContent = (cause as Error).message; result.className = 'error'; }
+      finally { saving = false; save.disabled = false; reject.disabled = false; }
     };
     const save = el('button', '💾'); save.className = 'stored-icon-button'; save.setAttribute('aria-label', 'Zapisz znaczenie'); save.title = 'Zapisz znaczenie'; save.addEventListener('click', () => { void submit(false); });
-    const reject = el('button', '🗑'); reject.className = 'secondary stored-icon-button'; reject.setAttribute('aria-label', 'Odrzuć propozycję'); reject.title = 'Odrzuć propozycję'; reject.addEventListener('click', async () => { await request('/api/lexical-senses/generation-proposals/' + p.id + '/reject', { method: 'POST' }); status.textContent = 'Odrzucono propozycję.'; load(); });
+    const reject = el('button', '🗑'); reject.className = 'secondary stored-icon-button'; reject.setAttribute('aria-label', 'Odrzuć propozycję'); reject.title = 'Odrzuć propozycję'; reject.addEventListener('click', async () => { try { reject.disabled = true; await request('/api/lexical-senses/generation-proposals/' + p.id + '/reject', { method: 'POST' }); await load(); status.textContent = 'Odrzucono propozycję.'; } catch (cause) { result.textContent = (cause as Error).message; result.className = 'error'; reject.disabled = false; } });
     actions.append(save, reject); card.append(result); proposals.append(card);
   }
   if (!all.length) proposals.append(el('p', 'Brak propozycji do przetworzenia.')); status.textContent = `Oczekujące propozycje: ${all.length}.`;

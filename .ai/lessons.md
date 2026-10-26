@@ -2,6 +2,10 @@
 
 Read this index before working on related areas. Add concise, evidence-based lessons here after a bug fix or other reusable finding. Put longer explanations in `lessons/YYYY-MM-DD-slug.md` and link them from the entry.
 
+- Reset postępu FSRS musi w jednej transakcji usunąć próby sesji przed dziennikiem FSRS i kartami, a następnie unieważnić tokeny prezentacji z innych kart przeglądarki. Same puste tabele pozwoliłyby starej ocenie ponownie rozpocząć naukę. Dotyczy [resetu nauki](runs/2026-10-26-reset-study-progress.md).
+
+- Schemat zapisu propozycji LexicalSense musi akceptować rekordy dopuszczone przez format odpowiedzi generowania; inaczej można utrwalić propozycję, której nie da się zapisać. Błędy zapisu pokazuj przy konkretnej propozycji. Dotyczy [naprawy zapisu](runs/2026-10-26-generation-proposal-save-empty-examples.md).
+
 - Przy zmianie modelu FSRS zachowuj pełną kartę i dziennik wraz z rewizją konfiguracji; pola zbiorcze nie wystarczają do wiernego odtworzenia stanu. Odrzuć niepełny stary rekord zamiast nadpisać go nową kartą. Dotyczy [integracji FSRS](runs/2026-10-26-fsrs-integration-implementation.md).
 
 - Przy ocenie znaczenia zapisuj zdarzenie sesji i ocenę FSRS w jednej transakcji, a ponowienie żądania rozpoznawaj po trwałym `eventId` wraz z danymi oceny i tokenem prezentacji. Dzięki temu utrata odpowiedzi HTTP, równoległa karta i błąd zapisu nie tworzą podwójnej ani częściowej oceny. Dotyczy [ekranu Nauka](runs/2026-10-26-study-screen-implementation.md).

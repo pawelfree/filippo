@@ -10,6 +10,7 @@ const retrySession = document.getElementById('retry-session') as HTMLButtonEleme
 const note = document.getElementById('overview-note')!;
 const sense = document.getElementById('study-sense')!;
 const ratings = [...document.querySelectorAll<HTMLButtonElement>('[data-rating]')];
+const resetButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-reset-study]')];
 const storageKey = 'filippo.study.pendingAttempt';
 const startedKey = 'filippo.study.started';
 let sessionActive = false;
@@ -33,6 +34,7 @@ function setBusy(value: boolean) {
   retrySession.hidden = !pending;
   retry.disabled = value;
   retrySession.disabled = value;
+  resetButtons.forEach((button) => { button.disabled = value; });
 }
 async function request(path: string, options?: RequestInit) {
   const response = await fetch(path, options);
@@ -184,6 +186,27 @@ for (const button of ratings) button.addEventListener('click', () => {
 });
 retry.addEventListener('click', submitPending);
 retrySession.addEventListener('click', submitPending);
+for (const button of resetButtons) button.addEventListener('click', async () => {
+  if (busy || !window.confirm('Usunąć cały postęp nauki, historię ocen i terminy powtórek? Zapisane znaczenia pozostaną.')) return;
+  try {
+    setBusy(true);
+    const data = await request('/api/study/reset', { method: 'POST' });
+    pending = null;
+    candidate = null;
+    hasStarted = false;
+    automaticRetryUsed = false;
+    localStorage.removeItem(storageKey);
+    localStorage.removeItem(startedKey);
+    sessionActive = false;
+    session.hidden = true;
+    overview.hidden = false;
+    renderSense(null);
+    renderCounts(data);
+    setError('');
+    setStatus('Postęp nauki został wyczyszczony. Wszystkie znaczenia są ponownie nowe.');
+  } catch (cause: any) { setError(cause.message); }
+  finally { setBusy(false); }
+});
 window.addEventListener('online', () => { if (pending) submitPending(); else if (sessionActive) loadNext(); });
 setInterval(() => { if (!busy && !pending) { if (sessionActive) loadNext(); else loadOverview(); } }, 15000);
 if (pending) submitPending(); else loadOverview();

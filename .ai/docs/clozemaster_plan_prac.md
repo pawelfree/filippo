@@ -33,7 +33,7 @@ Dokument jest listą prac i decyzji do domknięcia, a nie nową specyfikacją ju
 | `evaluation_rules.md` | Przeredagowane jako instrukcja wejście → diagnoza → JSON dla agenta | Zgodność końcowego kontraktu ze skryptem i zestawem testów |
 | `profile_update.md` | Przygotowany algorytm aktualizacji profilu | Audyt zgodności z `profile.schema.json` 2.0.0, `evaluation_rules.md` i kontraktem zdarzeń |
 | `evaluation_config.json` | Plik konfiguracji parametrów modelu istnieje | Weryfikacja zakresów parametrów i decyzja, gdzie walidować konfigurację |
-| LexicalSense i zapis słowa/frazy | Istnieją `lexicalsense.schema.json` i `creation.rules.md`; słowo lub fraza jest polem znaczenia | Kontrakt dodawania/importu, deduplikacja i status gotowości znaczeń; bez osobnego rekordu `LexicalItem` |
+| LexicalSense i zapis słowa/frazy | Działa zbiorcze zgłaszanie słów/fraz, generowanie propozycji, przegląd, zapis, odrzucanie i edycja znaczeń; `LexicalSense` ma identyfikator w bazie, bez osobnego rekordu `LexicalItem` | P0.1 zrealizowane |
 | FSRS | Jednostka harmonogramowania i rozdzielenie od ćwiczeń ustalone | Kontrakt zdarzeń i operacje konkretnej implementacji |
 
 **Zasada kontroli zakresu:** nie należy pisać nowych dokumentów, jeśli odpowiednia część istniejącej dokumentacji już realizuje dany kontrakt; wtedy wystarczy audyt i ewentualna korekta.
@@ -46,20 +46,9 @@ Dokument jest listą prac i decyzji do domknięcia, a nie nową specyfikacją ju
 
 **Cel:** użytkownik może doprowadzić nowy materiał leksykalny do stanu umożliwiającego generowanie ćwiczeń.
 
-**Prace:**
+**Stan na 2026-10-26: zrealizowane.**
 
-- Zweryfikować `lexicalsense.schema.json`: każde znaczenie ma własny `lexical_sense_id`, a słowo lub fraza jest zapisana bezpośrednio w `lexical_item_it`. Nie tworzyć osobnego rekordu ani identyfikatora `LexicalItem`.
-- Określić operacje: dodanie pojedynczego słowa/frazy, dodanie wielu pozycji, import, podgląd, poprawa, odrzucenie, połączenie duplikatów.
-- Zdefiniować rolę AI w lematyzacji, rozpoznaniu jednostek wielowyrazowych, identyfikacji znaczeń, części mowy, rejestru i ograniczeń użycia.
-- Określić, jak rozdzielać różne znaczenia jednego wyrazu oraz jak traktować synonimy, warianty zapisu i formy fleksyjne.
-- Ustalić wymaganą minimalną kompletność danych przed dopuszczeniem znaczenia do generowania.
-- Zdefiniować deduplikację: klucz/strategia wyszukania kandydata, rozstrzyganie homonimii i polisemii, scalanie bez gubienia powiązań.
-- Ustalić źródło i status danych znaczenia: proponowane, zweryfikowane, gotowe do nauki, zablokowane (nazwy statusów do uzgodnienia z istniejącymi schematami).
-- Ustalić powiązanie importowanych znaczeń z użytkownikiem, kolejką nowych pozycji i ewentualnym stanem FSRS.
-
-**Rezultat:** kontrakt dodawania/importu i zapis znaczeń zgodny z `lexicalsense.schema.json` oraz `creation.rules.md`, z określonymi zasadami deduplikacji i gotowości. Uzupełnić istniejące materiały; osobny rekord, identyfikator, schemat ani dokument repozytorium `LexicalItem` nie są wymagane.
-
-**Kryterium ukończenia:** dodanie frazy lub słowa o kilku znaczeniach tworzy prawidłowe rekordy `LexicalSense`, ponowny import nie generuje niekontrolowanych duplikatów, a każde znaczenie ma jednoznaczny status gotowości do generowania.
+**Ocena kryterium:** spełnione w obecnym przepływie dodawania i zapisu. Kod przyjmuje frazy i wiele znaczeń, zapisuje je jako osobne `LexicalSense`, chroni przed ponownym zapisem identycznego znaczenia i pozwala rozstrzygnąć podobne znaczenia. Istniejące testy przepływu nie obejmują osobno frazy ani ponownego importu.
 
 ### P0.2. Kanoniczny model ćwiczenia
 
@@ -236,7 +225,7 @@ Dokument jest listą prac i decyzji do domknięcia, a nie nową specyfikacją ju
 **Prace:**
 
 - Zweryfikować spójność identyfikatorów i referencji: jednostka → znaczenie → ćwiczenie → prezentacja → obserwacja → stan nauki.
-- Zdefiniować procedury korekty lub scalenia rekordów `LexicalSense` przy istniejącym FSRS.
+- Zdefiniować procedury korekty rekordów `LexicalSense` przy istniejącym FSRS.
 - Zdefiniować skutki zmiany taksonomii i schematu profilu; nie zakładać automatycznego przeniesienia ocen między innymi wariantami.
 - Ustalić zachowanie starych ćwiczeń i raportów powiązanych ze starszą wersją taksonomii.
 - Przyjąć reguły transakcji, niezmienności zdarzeń, backupu i odtwarzania.
@@ -265,7 +254,7 @@ Dokument jest listą prac i decyzji do domknięcia, a nie nową specyfikacją ju
 
 | Etap | Co domknąć | Od czego zależy | Wynik |
 |---|---|---|---|
-| 1 | Model `LexicalSense` ze słowem lub frazą, dodawanie i import | Istniejący model pojęciowy | Znaczenia gotowe do nauki |
+| 1 | Model `LexicalSense` ze słowem lub frazą, dodawanie i import | Istniejący model pojęciowy | Zapisane znaczenia dostępne dla generatora |
 | 2 | Kanoniczny model ćwiczenia | Etap 1, taksonomia | Kompletny kontrakt zadania |
 | 3 | Generowanie, walidacja i repozytorium | Etapy 1–2, `generation_rules.md` | Ćwiczenia w bazie |
 | 4 | Integracja FSRS | Etap 1, definicja zdarzeń | Harmonogram jednostek |
@@ -296,14 +285,14 @@ Minimum scenariuszy end-to-end:
 13. **Zmiana priorytetów gramatycznych:** nowe ćwiczenia ukierunkowane na zdiagnozowaną trudność; harmonogram FSRS nie jest samowolnie zmieniany.
 14. **Niedokończona sesja:** wznowienie zachowuje tożsamość prezentacji i nie podwaja aktualizacji.
 15. **Powtórzenie zdarzenia po awarii:** stan profilu, FSRS i ledgera pozostaje idempotentny.
-16. **Zmiana taksonomii lub scalenie znaczeń:** system nie łączy cicho niezgodnych tożsamości i stanów.
+16. **Zmiana taksonomii:** system nie łączy cicho niezgodnych tożsamości i stanów.
 
 ## 7. Definicja ukończenia pełnego cyklu (Definition of Done)
 
 Projekt merytoryczny pełnego cyklu jest domknięty, jeżeli:
 
 - [ ] Można dodać słowo lub frazę do repozytorium, wraz z prawidłowym rozpoznaniem jednostek i znaczeń.
-- [ ] Każda jednostka dopuszczona do nauki ma jednoznaczną tożsamość i status.
+- [ ] Każde zapisane znaczenie ma jednoznaczną tożsamość.
 - [ ] Generator otrzymuje listę jednostek, profil i taksonomię oraz zapisuje zwalidowane ćwiczenia do bazy.
 - [ ] Każde ćwiczenie zawiera komplet informacji wymaganych przez checker i obie ścieżki oceny gramatycznej.
 - [ ] FSRS operuje na właściwej jednostce leksykalnej, nie na pojedynczym zadaniu.

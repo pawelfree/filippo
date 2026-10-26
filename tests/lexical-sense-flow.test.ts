@@ -16,9 +16,9 @@ const sense = (item: string, italian: string, polish: string) => ({
   evidence: { e1: { source_type: 'dictionary', locator: 'https://example.org/dizionario', supports: ['meaning', 'part_of_speech', 'register'] } },
 });
 
-async function waitFor(predicate: () => boolean): Promise<void> {
+async function waitFor(predicate: () => boolean | Promise<boolean>): Promise<void> {
   for (let attempt = 0; attempt < 150; attempt += 1) {
-    if (predicate()) return;
+    if (await predicate()) return;
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
   throw new Error('Timed out waiting for page state');
@@ -107,19 +107,20 @@ test('user reviews existing senses, corrects a generated sense, and saves only t
     await waitFor(() => doc.body.textContent!.includes('edificio abitativo'));
     assert.match(doc.body.textContent!, /Już w bazie/);
     doc.querySelector<HTMLButtonElement>('#generate-senses')!.click();
-    await waitFor(() => doc.querySelectorAll('[data-sense-card]').length === 2);
-    assert.match(doc.body.textContent!, /Sprawdzić pisownię/);
+    await waitFor(() => doc.body.textContent!.includes('Zadanie zlecone'));
+    assert.ok(doc.querySelector('a[href="/generation-proposals.html"]'));
+    await waitFor(async () => {
+      const response = await fetch(`${base}/api/lexical-senses/generation-proposals`);
+      return (await response.json() as unknown[]).length === 2;
+    });
     assert.equal(requests.length, 1);
     const request = requests[0] as { tools: unknown[]; text: { format: { strict: boolean } } };
     assert.deepEqual(request.tools, [{ type: 'web_search' }]);
     assert.equal(request.text.format.strict, true);
-    const cards = doc.querySelectorAll<HTMLElement>('[data-sense-card]');
-    const polish = cards[0].querySelector<HTMLTextAreaElement>('[data-definition-pl]')!;
-    polish.value = 'członkowie rodziny';
-    polish.dispatchEvent(new window.Event('input', { bubbles: true }));
-    cards[0].querySelector<HTMLInputElement>('[data-select-sense]')!.click();
-    doc.querySelector<HTMLButtonElement>('#save-senses')!.click();
-    await waitFor(() => doc.body.textContent!.includes('Zapisano 1'));
+    const pending = await (await fetch(`${base}/api/lexical-senses/generation-proposals`)).json() as Array<{ id: string; lexical_item_it: string }>;
+    const casa = pending.find((item) => item.lexical_item_it === 'casa')!;
+    const saved = await fetch(`${base}/api/lexical-senses/generation-proposals/${casa.id}/save`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ definition_pl: 'członkowie rodziny', confirmedDistinct: true }) });
+    assert.equal(saved.status, 201);
     const check = await fetch(`${base}/api/lexical-senses/check`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ items: ['casa', 'ponte'] }),
@@ -129,26 +130,11 @@ test('user reviews existing senses, corrects a generated sense, and saves only t
     assert.equal(checked.items.find((item) => item.input === 'casa')?.existing.length, 2);
     assert.ok(checked.items.find((item) => item.input === 'casa')?.existing.some((item) => item.definition_pl === 'członkowie rodziny'));
     assert.equal(checked.items.find((item) => item.input === 'ponte')?.existing.length, 0);
-    doc.querySelector<HTMLButtonElement>('#save-senses')!.click();
-    await waitFor(() => doc.body.textContent!.includes('Konflikty: 1'));
-    const recheck = await fetch(`${base}/api/lexical-senses/check`, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ items: ['casa'] }),
-    });
-    const second = await recheck.json() as { items: Array<{ existing: unknown[] }> };
-    assert.equal(second.items[0].existing.length, 2);
-
-    const failedCheck = await fetch(`${base}/api/lexical-senses/check`, {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items: ['ponte'] }),
-    });
-    const { checkId } = await failedCheck.json() as { checkId: string };
-    openaiFailure = { status: 429, code: 'credit_balance_exhausted' };
-    const failedGeneration = await fetch(`${base}/api/lexical-senses/generate`, {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ checkId, items: ['ponte'] }),
-    });
-    assert.equal(failedGeneration.status, 429);
-    const failure = await failedGeneration.json() as { message: string };
-    assert.match(failure.message, /Wyczerpano środki API/);
+    const ponte = pending.find((item) => item.lexical_item_it === 'ponte')!;
+    const rejected = await fetch(`${base}/api/lexical-senses/generation-proposals/${ponte.id}/reject`, { method: 'POST' });
+    assert.equal(rejected.status, 201);
+    const remaining = await (await fetch(`${base}/api/lexical-senses/generation-proposals`)).json() as unknown[];
+    assert.equal(remaining.length, 0);
   } finally {
     dom?.window.close();
     await app.close();

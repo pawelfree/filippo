@@ -1,4 +1,4 @@
-import { BadGatewayException, BadRequestException, ConflictException, HttpException, HttpStatus, Injectable, Inject, NotFoundException, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, ConflictException, HttpException, HttpStatus, Injectable, Inject, NotFoundException, OnModuleDestroy, OnModuleInit, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { Prisma, type LexicalSense } from '@prisma/client';
 import Ajv2020 from 'ajv/dist/2020';
 import { readFileSync } from 'node:fs';
@@ -107,11 +107,99 @@ function possiblyEquivalent(record: LexicalSense, proposal: SenseRecord): boolea
 }
 
 @Injectable()
-export class LexicalSensesService {
+export class LexicalSensesService implements OnModuleInit, OnModuleDestroy {
   private readonly checks = new Map<string, { items: string[]; expires: number }>();
   private readonly drafts = new Map<string, { records: SenseRecord[]; expires: number }>();
+  private workerTimer?: NodeJS.Timeout;
+  private working = false;
 
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+
+  async onModuleInit(): Promise<void> {
+    try { await this.prisma.lexicalSenseGenerationJob.updateMany({ where: { status: { in: ['queued', 'running'] } }, data: { status: 'failed', errorCode: 'server_restarted', errorMessage: 'Serwer został uruchomiony ponownie. Uruchom zadanie ponownie.', completedAt: new Date() } }); } catch { /* database may be unavailable at bootstrap */ }
+    this.workerTimer = setInterval(() => { void this.runNextJob(); }, 500);
+    void this.runNextJob();
+  }
+
+  onModuleDestroy(): void { if (this.workerTimer) clearInterval(this.workerTimer); }
+
+  async createGenerationJob(body: { checkId?: unknown; items?: unknown }): Promise<{ id: string; status: string }> {
+    this.pruneExpired();
+    const items = this.verifiedItems(body);
+    try {
+      const job = await this.prisma.lexicalSenseGenerationJob.create({ data: { status: 'queued', itemsJson: JSON.stringify(items) } });
+      return { id: job.id, status: job.status };
+    } catch { throw new ServiceUnavailableException('Nie udało się zlecić generowania. Spróbuj ponownie.'); }
+  }
+
+  async generationJobs(): Promise<Array<Record<string, unknown>>> {
+    try {
+      const jobs = await this.prisma.lexicalSenseGenerationJob.findMany({ orderBy: { createdAt: 'desc' } });
+      return jobs.map((job) => ({ id: job.id, status: job.status, items: JSON.parse(job.itemsJson), errorCode: job.errorCode, errorMessage: job.errorMessage, createdAt: job.createdAt, completedAt: job.completedAt }));
+    } catch { throw new ServiceUnavailableException('Nie udało się odczytać zadań generowania.'); }
+  }
+
+  async retryGenerationJob(id: string): Promise<{ id: string; status: string }> {
+    const failed = await this.prisma.lexicalSenseGenerationJob.findUnique({ where: { id } });
+    if (!failed) throw new NotFoundException('Nie znaleziono zadania generowania.');
+    if (failed.status !== 'failed') throw new BadRequestException('Ponowić można tylko nieudane zadanie.');
+    const job = await this.prisma.lexicalSenseGenerationJob.create({ data: { status: 'queued', itemsJson: failed.itemsJson } });
+    return { id: job.id, status: job.status };
+  }
+
+  private async runNextJob(): Promise<void> {
+    if (this.working) return;
+    this.working = true;
+    try {
+      const queued = await this.prisma.lexicalSenseGenerationJob.findFirst({ where: { status: 'queued' }, orderBy: { createdAt: 'asc' } });
+      if (!queued) return;
+      const claimed = await this.prisma.lexicalSenseGenerationJob.updateMany({ where: { id: queued.id, status: 'queued' }, data: { status: 'running', startedAt: new Date(), errorCode: null, errorMessage: null } });
+      if (!claimed.count) return;
+      const items = JSON.parse(queued.itemsJson) as string[];
+      this.checks.set(queued.id, { items, expires: Date.now() + 10 * 60_000 });
+      try {
+        const batch = await this.generate({ checkId: queued.id, items }) as unknown as BatchResult & { validationWarnings?: unknown };
+        await this.prisma.$transaction(async (tx) => {
+          await tx.lexicalSenseGenerationJob.update({ where: { id: queued.id }, data: { status: 'ready', resultJson: JSON.stringify({ lexical_senses: batch.lexical_senses, deferred: batch.deferred, coverage: batch.coverage }), validationJson: batch.validationWarnings ? JSON.stringify(batch.validationWarnings) : null, completedAt: new Date() } });
+          for (let index = 0; index < batch.lexical_senses.length; index += 1) await tx.lexicalSenseGenerationProposal.create({ data: { jobId: queued.id, senseJson: JSON.stringify(batch.lexical_senses[index]), validationWarningsJson: batch.validationWarnings ? JSON.stringify((batch.validationWarnings as Array<{ recordIndex: number }>).filter((warning) => warning.recordIndex === index)) : null } });
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Nie udało się wygenerować propozycji.';
+        await this.prisma.lexicalSenseGenerationJob.update({ where: { id: queued.id }, data: { status: 'failed', errorCode: 'generation_failed', errorMessage: message, completedAt: new Date() } });
+      } finally { this.checks.delete(queued.id); }
+    } catch (error) { console.error('[LexicalSense generation worker failure]', error); }
+    finally { this.working = false; }
+  }
+
+  async generationProposals(): Promise<Array<Record<string, unknown>>> {
+    const proposals = await this.prisma.lexicalSenseGenerationProposal.findMany({ orderBy: { createdAt: 'asc' } });
+    const related = await this.prisma.lexicalSense.findMany({ where: { language: 'it' } });
+    return proposals.map((proposal) => {
+      const sense = JSON.parse(proposal.senseJson) as SenseRecord;
+      return { id: proposal.id, jobId: proposal.jobId, ...sense, validationWarnings: proposal.validationWarningsJson ? JSON.parse(proposal.validationWarningsJson) : [], matches: related.filter((stored) => sameItem(stored, sense)).map((stored) => ({ ...publicSense(stored), equivalent: equivalent(stored, sense), possible: possiblyEquivalent(stored, sense) })) };
+    });
+  }
+
+  async saveGenerationProposal(id: string, body: { definition_pl?: unknown; confirmedDistinct?: unknown }): Promise<Record<string, unknown>> {
+    const proposal = await this.prisma.lexicalSenseGenerationProposal.findUnique({ where: { id } });
+    if (!proposal) throw new NotFoundException('Nie znaleziono propozycji.');
+    if (typeof body.definition_pl !== 'string') throw new BadRequestException('Podaj polskie objaśnienie.');
+    const draftId = randomUUID();
+    this.drafts.set(draftId, { records: [JSON.parse(proposal.senseJson) as SenseRecord], expires: Date.now() + 60_000 });
+    const result = await this.save({ draftId, selected: [{ index: 0, definition_pl: body.definition_pl, confirmedDistinct: body.confirmedDistinct === true }] });
+    const verdict = result.results[0];
+    if (verdict.status === 'saved') await this.prisma.lexicalSenseGenerationProposal.delete({ where: { id } });
+    return verdict;
+  }
+
+  async rejectGenerationProposal(id: string): Promise<void> {
+    const proposal = await this.prisma.lexicalSenseGenerationProposal.findUnique({ where: { id } });
+    if (!proposal) throw new NotFoundException('Nie znaleziono propozycji.');
+    await this.prisma.$transaction([
+      this.prisma.rejectedLexicalSenseProposal.create({ data: { sourceProposalId: proposal.id, jobId: proposal.jobId, senseJson: proposal.senseJson, validationWarningsJson: proposal.validationWarningsJson } }),
+      this.prisma.lexicalSenseGenerationProposal.delete({ where: { id } }),
+    ]);
+  }
 
   private pruneExpired(): void {
     const now = Date.now();

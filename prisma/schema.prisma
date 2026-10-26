@@ -75,3 +75,43 @@ model OpenAiGenerationResult {
 
   @@index([createdAt])
 }
+
+model LexicalSenseGenerationJob {
+  id             String   @id @default(cuid())
+  status         String
+  itemsJson      String
+  resultJson     String?
+  validationJson String?
+  errorCode      String?
+  errorMessage   String?
+  createdAt      DateTime @default(now())
+  startedAt      DateTime?
+  completedAt    DateTime?
+  proposals      LexicalSenseGenerationProposal[]
+  rejected       RejectedLexicalSenseProposal[]
+
+  @@index([status, createdAt])
+}
+
+model LexicalSenseGenerationProposal {
+  id                     String   @id @default(cuid())
+  jobId                  String
+  senseJson              String
+  validationWarningsJson String?
+  createdAt              DateTime @default(now())
+  job                    LexicalSenseGenerationJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+}
+
+model RejectedLexicalSenseProposal {
+  id                     String   @id @default(cuid())
+  sourceProposalId       String   @unique
+  jobId                  String
+  senseJson              String
+  validationWarningsJson String?
+  rejectedAt             DateTime @default(now())
+  job                    LexicalSenseGenerationJob @relation(fields: [jobId], references: [id], onDelete: Restrict)
+
+  @@index([jobId])
+}

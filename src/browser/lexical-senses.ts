@@ -190,12 +190,11 @@ ui.generate.addEventListener('click', async () => {
     setError('');
     generationStarted = true;
     ui.items.replaceChildren();
-    busyState(true, 'Generowanie i sprawdzanie źródeł może potrwać kilka minut…');
-    const result = await post('/api/lexical-senses/generate', { checkId, items: checkedItems });
-    if (revision !== startedAt) { setStatus('Lista zmieniła się podczas generowania. Sprawdź ją ponownie.'); return; }
-    draft = result;
-    renderProposals(result);
-    setStatus(`Gotowe propozycje: ${result.lexical_senses.length}; odroczone: ${result.deferred.length}.`);
+    busyState(true, 'Zlecanie generowania…');
+    const result = await post('/api/lexical-senses/generation-jobs', { checkId, items: checkedItems });
+    if (revision !== startedAt) { setStatus('Lista zmieniła się podczas zlecania. Sprawdź ją ponownie.'); return; }
+    setStatus('Zadanie zlecone. Możesz dodać kolejną partię albo sprawdzić propozycje później.');
+    const link = document.createElement('a'); link.href = '/generation-proposals.html'; link.textContent = 'Przejdź do propozycji do przetworzenia'; ui.saveResult.replaceChildren(link);
   } catch (error) { setError(error.message); setStatus('Nie udało się wygenerować propozycji.'); }
   finally { busy = false; updateButtons(); }
 });

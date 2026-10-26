@@ -8,6 +8,7 @@ import { ProfileService } from './profile/profile.service';
 import { DatabaseModule } from './database/database.module';
 import { LexicalSensesController } from './lexical-senses/lexical-senses.controller';
 import { LexicalSensesService } from './lexical-senses/lexical-senses.service';
+import { FsrsService } from './fsrs/fsrs.service';
 
 @Module({
   imports: [DatabaseModule, ServeStaticModule.forRoot(
@@ -15,6 +16,6 @@ import { LexicalSensesService } from './lexical-senses/lexical-senses.service';
     { rootPath: join(process.cwd(), 'public') },
   )],
   controllers: [TaxonomyController, ProfileController, LexicalSensesController],
-  providers: [TaxonomyService, ProfileService, LexicalSensesService],
+  providers: [TaxonomyService, ProfileService, LexicalSensesService, FsrsService],
 })
 export class AppModule {}

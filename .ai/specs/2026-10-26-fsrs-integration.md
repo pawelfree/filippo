@@ -50,7 +50,7 @@ Backend przyjmuje ocenione zdarzenie dotyczące `LexicalSense` z jedną z cztere
 - Pełne obiekty biblioteki są serializowane z jednoznacznymi datami UTC i odtwarzane z walidacją do typów wymaganych przez bibliotekę. Dodatkowe kolumny w bazie są kopiami do odczytu/indeksowania, nie źródłem niezależnych obliczeń.
 - Istniejące modele trwałego stanu nauki i ocen są punktem migracji. Kontrakt danych trzeba uzupełnić o pełną kartę, pełny dziennik, tożsamość zdarzenia i rewizję konfiguracji; nie tworzyć drugiego konkurencyjnego bieżącego stanu.
 - Konfiguracja przypina wersję modelu i dokładną wersję pakietu. Na starcie nie ma nadpisań parametrów; zmiana ustawień tworzy nową kompletną rewizję po walidacji typów, zakresów, kroków i wag. Nowa rewizja działa dla kolejnych ocen i nie przesuwa automatycznie istniejących terminów.
-- Docelowy model opisany w źródle to FSRS-7 przez `ts-fsrs` v6. Przed implementacją trzeba potwierdzić stabilną publikację, rzeczywisty kontrakt API i wymagania Node dla przypinanej wersji; nie opierać wdrożenia na przykładach z nieprzypiętej wersji beta. Wersję modelu i wersję pakietu zmienia się wyłącznie w kontrolowanej operacji migracyjnej.
+- Docelowy model to FSRS-7 przez `ts-fsrs@6.0.0-beta.15`, przypięte dokładnie w `package-lock.json`. Użytkownik 2026-10-26 wybrał tę wersję beta wobec braku stabilnego v6. Pakiet wymaga Node >=24. Wersję modelu i wersję pakietu zmienia się wyłącznie w kontrolowanej operacji migracyjnej.
 - Osobna operacja korekty wcześniejszej oceny albo migracji modelu wymaga odtworzenia historii w porządku czasowym. Nie wolno symulować korekty jako nowej oceny ze starą datą.
 
 ## Testing Decisions
@@ -71,7 +71,7 @@ Backend przyjmuje ocenione zdarzenie dotyczące `LexicalSense` z jedną z cztere
 - [ ] Równoległe lub opóźnione zdarzenia nie nadpisują nowszego stanu.
 - [ ] Pusta konfiguracja używa parametrów przypiętej wersji; poprawna nowa rewizja działa dla następnych ocen, a niepoprawna jest odrzucana.
 - [ ] Odczyt stanu nie zmienia karty i zwraca termin pochodzący z karty FSRS.
-- [ ] Wybrana wersja pakietu i modelu jest stabilna, przypięta i zgodna z wersją Node używaną przez aplikację.
+- [ ] Wybrana wersja pakietu i modelu jest przypięta, zgodna z Node używanym przez aplikację i świadomie oznaczona jako beta.
 
 ## Out of Scope
 
@@ -84,8 +84,8 @@ Backend przyjmuje ocenione zdarzenie dotyczące `LexicalSense` z jedną z cztere
 
 - Słownik domenowy rozróżnia `LexicalSense`, zadanie i jednostkę FSRS; nazewnictwo w implementacji powinno zachować te znaczenia.
 - Aktualny model danych ma już stan FSRS powiązany z uczącym się i `LexicalSense` oraz oceny powiązane z zadaniem, ale nie utrwala jeszcze pełnego kontraktu karty i zdarzenia opisanego powyżej.
-- Na dzień 2026-10-26 `ts-fsrs` v6 figuruje w npm jako beta, a stabilna wersja jest planowana przez autorów na 2026-10-28. Repozytorium deklaruje Node `>=20`; dokument źródłowy zakłada dla v6 Node `>=24`. Przed rozpoczęciem implementacji zweryfikować aktualną stabilną wersję i uaktualnić środowisko, jeżeli wymaga tego wybrana wersja biblioteki. Źródła: [wydania npm](https://www.npmjs.com/package/ts-fsrs?activeTab=versions), [plan wydania autorów](https://github.com/open-spaced-repetition/ts-fsrs/issues/373), [oficjalne README](https://github.com/open-spaced-repetition/ts-fsrs/blob/main/README.md).
+- Na dzień 2026-10-26 `ts-fsrs` v6 figuruje w npm jako beta; użytkownik wybrał przypięcie `6.0.0-beta.15`, a projekt podniósł wymaganie Node do `>=24`. Źródła: [wydania npm](https://www.npmjs.com/package/ts-fsrs?activeTab=versions), [oficjalne README](https://github.com/open-spaced-repetition/ts-fsrs/blob/main/README.md).
 
 ## Open Questions
 
-- Jaką dokładnie stabilną wersję `ts-fsrs` v6 oraz minimalną wersję Node wybrać po publikacji stabilnego pakietu?
+- Późniejsza aktualizacja z `6.0.0-beta.15` do stabilnego v6 wymaga osobnej kontroli zgodności stanu.

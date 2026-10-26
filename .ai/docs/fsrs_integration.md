@@ -19,8 +19,10 @@ Integracja odpowiada wyłącznie za:
 
 Biblioteka: [`ts-fsrs`](https://github.com/open-spaced-repetition/ts-fsrs).
 
+Implementacja przypina `ts-fsrs@6.0.0-beta.15` i model `FSRS-7`. Wersja beta została wybrana świadomie 2026-10-26; aktualizacja do stabilnego v6 wymaga osobnej weryfikacji zgodności zapisanych kart i historii.
+
 ```bash
-npm install ts-fsrs
+npm install ts-fsrs@6.0.0-beta.15 --save-exact
 ```
 
 Dla aktualnego API `ts-fsrs` **v6** wymagany jest **Node.js 24 lub nowszy**. Aktualny interfejs to asynchroniczne `DefaultScheduler()`, a następnie `newCard()` i `review()`; **nie** starsze `fsrs()`, `createEmptyCard()` i `next()`.

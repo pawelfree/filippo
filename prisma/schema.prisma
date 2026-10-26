@@ -17,6 +17,7 @@ model LexicalSense {
   updatedAt   DateTime       @updatedAt
   tasks       GeneratedTask[]
   fsrsStates  FsrsState[]
+  fsrsReviews FsrsReview[]
 
   @@index([lexicalItem])
 }
@@ -44,11 +45,34 @@ model FsrsState {
   lapses         Int          @default(0)
   lastReviewAt   DateTime?
   schedulerData  String?
+  configRevision Int?
+  version        Int          @default(0)
   updatedAt      DateTime     @updatedAt
   lexicalSense   LexicalSense @relation(fields: [lexicalSenseId], references: [id], onDelete: Restrict)
 
   @@unique([learnerId, lexicalSenseId])
   @@index([learnerId, dueAt])
+}
+
+model FsrsReview {
+  reviewEventId   String       @id
+  lexicalSenseId  String
+  rating          Int
+  reviewedAt      DateTime
+  revlogJson      String
+  cardJson        String
+  configRevision  Int
+  createdAt       DateTime     @default(now())
+  lexicalSense    LexicalSense @relation(fields: [lexicalSenseId], references: [id], onDelete: Restrict)
+
+  @@index([lexicalSenseId, reviewedAt])
+}
+
+model FsrsConfigRevision {
+  revision       Int      @id
+  modelVersion   String
+  overridesJson  String
+  createdAt      DateTime @default(now())
 }
 
 model Review {

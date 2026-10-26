@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Inject, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import { LexicalSensesService } from './lexical-senses.service';
 
 @Controller('api/lexical-senses')
@@ -14,7 +14,7 @@ export class LexicalSensesController {
   @Get('generation-proposals') generationProposals() { return this.senses.generationProposals(); }
   @Post('generation-proposals/:id/save') saveGenerationProposal(@Param('id') id: string, @Body() body: { definition_pl?: unknown; confirmedDistinct?: unknown }) { return this.senses.saveGenerationProposal(id, body); }
   @Post('generation-proposals/:id/reject') rejectGenerationProposal(@Param('id') id: string) { return this.senses.rejectGenerationProposal(id); }
-  @Get() list() { return this.senses.list(); }
+  @Get() list(@Query('page') page?: string, @Query('search') search?: string) { return this.senses.list(page, search); }
   @Patch(':id') update(@Param('id') id: string, @Body() body: { definition_it?: unknown; definition_pl?: unknown }) { return this.senses.update(id, body); }
   @Delete(':id') remove(@Param('id') id: string) { return this.senses.remove(id); }
 }

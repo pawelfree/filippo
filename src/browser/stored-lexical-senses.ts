@@ -3,7 +3,14 @@ const list = document.getElementById('stored-list');
 const status = document.getElementById('status');
 const error = document.getElementById('error');
 const search = document.getElementById('stored-search') as HTMLInputElement;
+const previous = document.getElementById('stored-prev') as HTMLButtonElement;
+const next = document.getElementById('stored-next') as HTMLButtonElement;
+const pageInfo = document.getElementById('stored-page-info');
 let allItems = [];
+let page = 1;
+let totalPages = 1;
+let loadToken = 0;
+let searchTimer: ReturnType<typeof setTimeout>;
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', label?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -31,7 +38,7 @@ function card(item) {
   remove.type = 'button';
   remove.setAttribute('aria-label', 'Usuń wpis');
   remove.title = 'Usuń wpis';
-  remove.addEventListener('click', () => removeItem(article, item.id));
+  remove.addEventListener('click', () => removeItem(item.id));
   iconActions.append(remove);
   if (!item.editable) {
     article.append(element('p', 'deferred', 'Ten starszy wpis nie ma pełnych danych i nie może być edytowany na tej stronie.'));
@@ -65,9 +72,9 @@ function card(item) {
       const updated = await request(`/api/lexical-senses/${item.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ definition_it: italianInput.value, definition_pl: polishInput.value }) });
       italianInput.value = updated.definition_it;
       polishInput.value = updated.definition_pl;
-      allItems = allItems.map((stored) => stored.id === updated.id ? { ...updated, editable: true } : stored);
       item.definition_it = updated.definition_it;
       item.definition_pl = updated.definition_pl;
+      await load();
       setStatus(`Zapisano zmiany dla „${updated.lexical_item_it}”.`);
     } catch (cause) { setError(cause.message); }
     finally { updateSaveState(); }
@@ -75,31 +82,48 @@ function card(item) {
   article.append(italian, polish);
   return article;
 }
-async function removeItem(article, id) {
+async function removeItem(id) {
   if (!window.confirm('Usunąć to znaczenie?')) return;
   try {
     setError('');
     await request(`/api/lexical-senses/${id}`, { method: 'DELETE' });
-    allItems = allItems.filter((item) => item.id !== id);
-    render();
+    await load();
     setStatus('Usunięto znaczenie.');
   } catch (cause) { setError(cause.message); }
 }
 async function load() {
+  const token = ++loadToken;
   try {
     setStatus('Wczytywanie zapisanych znaczeń…');
-    allItems = await request('/api/lexical-senses');
+    setError('');
+    const params = new URLSearchParams({ page: String(page) });
+    const query = search.value.trim();
+    if (query) params.set('search', query);
+    const result = await request(`/api/lexical-senses?${params}`);
+    if (token !== loadToken) return;
+    allItems = result.items;
+    page = result.page;
+    totalPages = result.totalPages;
     render();
-    setStatus(`Zapisane znaczenia: ${allItems.length}.`);
-  } catch (cause) { setError(cause.message); setStatus('Nie udało się wczytać znaczeń.'); }
+    setStatus(`Zapisane znaczenia: ${result.total}.`);
+  } catch (cause) { if (token === loadToken) { setError(cause.message); setStatus('Nie udało się wczytać znaczeń.'); } }
 }
 function render() {
   const query = search.value.trim().toLocaleLowerCase('it');
-  const visible = query ? allItems.filter((item) => [item.lexical_item_it, item.definition_it, item.definition_pl].some((value) => String(value || '').toLocaleLowerCase('it').includes(query))) : allItems;
   list.replaceChildren();
-  if (!visible.length) list.append(element('p', 'hint', query ? 'Brak znaczeń pasujących do filtra.' : 'Brak zapisanych znaczeń.'));
-  else visible.forEach((item) => list.append(card(item)));
+  if (!allItems.length) list.append(element('p', 'hint', query ? 'Brak znaczeń pasujących do filtra.' : 'Brak zapisanych znaczeń.'));
+  else allItems.forEach((item) => list.append(card(item)));
+  pageInfo.textContent = `Strona ${page} z ${totalPages}`;
+  previous.disabled = page <= 1;
+  next.disabled = page >= totalPages;
 }
-search.addEventListener('input', render);
+search.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  loadToken += 1;
+  page = 1;
+  searchTimer = setTimeout(load, 250);
+});
+previous.addEventListener('click', () => { if (page > 1) { page -= 1; load(); } });
+next.addEventListener('click', () => { if (page < totalPages) { page += 1; load(); } });
 load();
 })();

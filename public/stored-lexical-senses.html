@@ -30,8 +30,13 @@
       <section class="lexical-panel" aria-labelledby="stored-heading">
         <div class="section-heading"><span>Baza danych</span><h2 id="stored-heading">LexicalSense</h2></div>
         <label class="search-label" for="stored-search">Filtruj zapisane znaczenia</label>
-        <input id="stored-search" class="stored-search" type="search" placeholder="Szukaj hasła lub wyjaśnienia…" autocomplete="off" />
+        <input id="stored-search" class="stored-search" type="search" placeholder="Szukaj hasła lub wyjaśnienia…" autocomplete="off" maxlength="150" />
         <div id="stored-list" class="stored-list"></div>
+        <nav class="stored-pagination" aria-label="Strony zapisanych znaczeń">
+          <button id="stored-prev" class="secondary" type="button">Poprzednia</button>
+          <span id="stored-page-info" aria-live="polite"></span>
+          <button id="stored-next" class="secondary" type="button">Następna</button>
+        </nav>
       </section>
     </main>
   </body>

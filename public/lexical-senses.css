@@ -21,12 +21,16 @@
 .status { margin: 14px 0; min-height: 1.4em; color: #365769; }
 .existing-card, .sense-card { border: 1px solid #e5e1d8; border-radius: 10px; padding: 16px; margin: 12px 0; }
 .stored-list { display: grid; gap: 12px; }
+.stored-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 20px; }
+.stored-pagination button:disabled { opacity: .45; cursor: not-allowed; }
 .stored-card { margin: 0; }
 .stored-search { width: 100%; margin: 0 0 16px; border: 1px solid #cfc9bd; border-radius: 8px; padding: 11px 12px; font: inherit; background: #fff; }
 .stored-card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .stored-card-header h3 { margin: 0; }
 .stored-icon-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .lexical-panel button.stored-icon-button { width: 38px; min-height: 38px; padding: 8px; line-height: 1; font-size: 1rem; }
+.stored-card .edit-label { margin-top: 10px; color: #586b5c; font-size: .82rem; font-weight: 500; }
+.stored-card .edit-label textarea { padding: 7px 10px; height: calc(2.9em + 16px); min-height: calc(2.9em + 16px); max-height: calc(2.9em + 16px); font-size: .875rem; font-weight: 400; line-height: 1.45; resize: none; overflow-y: auto; }
 .existing-card h3, .sense-card h3 { margin: 0 0 8px; }
 .badge { display: inline-block; padding: 5px 9px; border-radius: 999px; }
 .existing-badge { background: #fff1cf; color: #624915; }

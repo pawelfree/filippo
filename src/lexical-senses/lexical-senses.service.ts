@@ -259,10 +259,27 @@ export class LexicalSensesService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async list(): Promise<Array<Record<string, unknown>>> {
+  async list(pageInput?: string, searchInput?: string): Promise<{ items: Array<Record<string, unknown>>; page: number; pageSize: number; total: number; totalPages: number }> {
+    if (pageInput !== undefined && (!/^[1-9]\d*$/.test(pageInput) || !Number.isSafeInteger(Number(pageInput)))) throw new BadRequestException('Numer strony musi być dodatnią liczbą całkowitą.');
+    if (searchInput !== undefined && (typeof searchInput !== 'string' || searchInput.length > 150)) throw new BadRequestException('Filtr może mieć najwyżej 150 znaków.');
+    const requestedPage = pageInput === undefined ? 1 : Number(pageInput);
+    const pageSize = 10;
+    const search = searchInput?.trim();
     try {
-      const records = await this.prisma.lexicalSense.findMany({ where: { language: 'it' }, orderBy: { createdAt: 'desc' } });
-      return records.map((record) => ({ ...publicSense(record), createdAt: record.createdAt, editable: !!parseStored(record) }));
+      const filter = search ? Prisma.sql`language = 'it' AND (
+        instr(lower(lexicalItem), lower(${search})) > 0 OR
+        instr(lower(definition), lower(${search})) > 0 OR
+        instr(lower(CASE WHEN json_valid(detailsJson) THEN json_extract(detailsJson, '$.definition_pl') ELSE '' END), lower(${search})) > 0
+      )` : Prisma.sql`language = 'it'`;
+      const [{ total: count }] = await this.prisma.$queryRaw<Array<{ total: bigint }>>(Prisma.sql`SELECT count(*) AS total FROM "LexicalSense" WHERE ${filter}`);
+      const total = Number(count);
+      const totalPages = Math.max(1, Math.ceil(total / pageSize));
+      const page = Math.min(requestedPage, totalPages);
+      const ids = await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`SELECT id FROM "LexicalSense" WHERE ${filter} ORDER BY createdAt DESC, id DESC LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`);
+      const byId = await this.prisma.lexicalSense.findMany({ where: { id: { in: ids.map((item) => item.id) } } });
+      const recordsById = new Map(byId.map((record) => [record.id, record]));
+      const records = ids.map(({ id }) => recordsById.get(id)).filter((record): record is LexicalSense => !!record);
+      return { items: records.map((record) => ({ ...publicSense(record), createdAt: record.createdAt, editable: !!parseStored(record) })), page, pageSize, total, totalPages };
     } catch { throw new ServiceUnavailableException('Baza danych jest chwilowo niedostępna. Spróbuj ponownie.'); }
   }
 

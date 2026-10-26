@@ -13,6 +13,10 @@
 .lexical-panel button.secondary { color: #233f55; background: #edf1f2; }
 .lexical-panel button:disabled { opacity: .5; cursor: not-allowed; }
 .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.job-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.job-tabs button[aria-selected="true"] { background: #547f68; }
+.job-table { width: 100%; border-collapse: collapse; }
+.job-table th, .job-table td { padding: 10px; text-align: left; border-bottom: 1px solid #e5e1d8; vertical-align: top; }
 .hint { color: #675f55; font-size: .9rem; }
 .status { margin: 14px 0; min-height: 1.4em; color: #365769; }
 .existing-card, .sense-card { border: 1px solid #e5e1d8; border-radius: 10px; padding: 16px; margin: 12px 0; }

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Filippo · Statystyki nauki</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/lexical-senses.css" />
+    <link rel="stylesheet" href="/study-statistics.css" />
+    <script src="/assets/study-statistics.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">F</span><span>filippo <small>/ nauka</small></span></div>
+      <nav class="page-nav" aria-label="Nawigacja główna">
+        <a href="/">Taksonomia</a><a href="/profile.html">Profil kompetencyjny</a>
+        <details class="lexical-menu"><summary>Słownictwo</summary><div class="lexical-menu-items"><a href="/lexical-senses.html">Dodaj znaczenia</a><a href="/generation-proposals.html">Propozycje do przetworzenia</a><a href="/stored-lexical-senses.html">Zapisane znaczenia</a></div></details>
+        <a href="/study.html">Nauka</a><a class="current" href="/study-statistics.html" aria-current="page">Statystyki</a>
+      </nav>
+    </header>
+    <main class="shell lexical-shell statistics-shell">
+      <section class="intro"><div><p class="eyebrow">Włoskie słownictwo</p><h1>Statystyki <em>nauki</em></h1><p>Historia ocen, skuteczność zapamiętywania i zapisane terminy powtórek.</p></div><div class="statistics-actions"><a class="statistics-back" href="/study.html">← Wróć do nauki</a><button id="refresh" class="secondary" type="button">Odśwież</button></div></section>
+      <div id="page-error" class="error" role="alert" hidden></div>
+      <section class="lexical-panel" aria-labelledby="summary-heading">
+        <div class="section-heading"><span>Przegląd</span><h2 id="summary-heading">Stan nauki</h2></div>
+        <div id="summary" class="statistics-cards" aria-live="polite"></div>
+      </section>
+      <section class="lexical-panel" aria-labelledby="memory-heading">
+        <div class="section-heading"><span>Stan kart</span><h2 id="memory-heading">Rozkłady pamięci</h2></div>
+        <p id="memory-as-of" class="statistics-copy"></p>
+        <div id="memory-error" class="error" role="alert" hidden></div>
+        <div id="memory-summary" class="statistics-cards"></div>
+        <div id="memory-distributions" class="memory-grid"></div>
+      </section>
+      <section class="lexical-panel" aria-labelledby="retention-heading">
+        <div class="section-heading"><span>Zapamiętywanie</span><h2 id="retention-heading">Rzeczywista skuteczność</h2></div>
+        <p id="retention-range" class="statistics-range-note"></p>
+        <p class="statistics-copy">Liczy się tylko pierwsza formalna ocena danego znaczenia w danym dniu: Again oznacza niepowodzenie, a Hard, Good i Easy powodzenie. Mianownik pokazuje liczbę prób.</p>
+        <div id="retention" class="statistics-cards"></div>
+        <p id="unclassified" class="statistics-copy"></p>
+      </section>
+      <section class="lexical-panel" aria-labelledby="history-heading">
+        <div class="section-heading"><span>Aktywność</span><h2 id="history-heading">Historia ocen</h2></div>
+        <div class="statistics-toolbar">
+          <label for="history-range">Zakres historii</label>
+          <select id="history-range"><option value="7d">7 dni</option><option value="30d" selected>30 dni</option><option value="90d">90 dni</option><option value="all">Cała historia</option></select>
+          <span id="history-as-of" class="statistics-as-of" aria-live="polite"></span>
+        </div>
+        <p class="statistics-copy">Formalne oceny według dnia w strefie Europe/Warsaw. Utrwalenia są pokazane osobno i nie wchodzą do skuteczności.</p>
+        <details class="statistics-days">
+          <summary>Lista dni historii</summary>
+          <div id="history-chart" class="statistics-chart" role="img" aria-label="Wykres liczby ocen według dni"></div>
+          <div class="table-scroll"><table id="history-table"><caption>Dokładne liczby formalnych ocen i utrwaleń według dnia</caption><thead><tr><th scope="col">Dzień</th><th scope="col">Again</th><th scope="col">Hard</th><th scope="col">Good</th><th scope="col">Easy</th><th scope="col">Utrwalenia</th></tr></thead><tbody></tbody></table></div>
+        </details>
+      </section>
+      <section class="lexical-panel" aria-labelledby="schedule-heading">
+        <div class="section-heading"><span>Migawka harmonogramu</span><h2 id="schedule-heading">Zaplanowane terminy</h2></div>
+        <div class="statistics-toolbar">
+          <label for="schedule-range">Zakres terminów</label>
+          <select id="schedule-range"><option value="7d">7 dni</option><option value="30d" selected>30 dni</option></select>
+        </div>
+        <p id="schedule-as-of" class="statistics-copy"></p>
+        <div id="schedule-summary" class="statistics-cards"></div>
+        <details class="statistics-days">
+          <summary>Lista dni zaplanowanych terminów</summary>
+          <div class="table-scroll"><table id="schedule-table"><caption id="schedule-caption">Zapisane terminy w kolejnych 30 dniach</caption><thead><tr><th scope="col">Dzień</th><th scope="col">Znaczenia</th></tr></thead><tbody></tbody></table></div>
+        </details>
+      </section>
+    </main>
+  </body>
+</html>

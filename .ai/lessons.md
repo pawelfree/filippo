@@ -2,6 +2,8 @@
 
 Read this index before working on related areas. Add concise, evidence-based lessons here after a bug fix or other reusable finding. Put longer explanations in `lessons/YYYY-MM-DD-slug.md` and link them from the entry.
 
+- Statystyki FSRS odczytuj z migawki kart i ocen: pierwsza formalna ocena znaczenia w dniu Warszawy wyznacza skuteczność, a lokalne utrwalenia licz osobno. Prawdopodobieństwo przypomnienia licz z pełnej karty i przypisanej jej rewizji konfiguracji; błąd tej części nie powinien ukrywać historii. Sprawdzono w [teście statystyk](../tests/study-statistics.test.ts).
+
 - Oczekujące utrwalenie twórz po formalnej ocenie `Again`, ale nie po `Again` w samym utrwaleniu. W przeciwnym razie błędne odpowiedzi tworzą niekończącą się lokalną kolejkę i blokują nowe znaczenia. Dotyczy [ograniczenia utrwaleń](runs/2026-10-26-limit-study-reinforcement.md).
 
 - W kolejce nauki rozróżniaj utrwalenie po należnej powtórce od utrwalenia po pierwszym pokazaniu nowego znaczenia. Wspólny priorytet dla obu sprawiał, że błędnie ocenione nowe znaczenie wracało natychmiast przed pozostałymi nowymi. Dotyczy [kolejności nauki](runs/2026-10-26-study-reinforcement-order.md).

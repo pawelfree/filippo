@@ -9,7 +9,7 @@ Kalendarz statystyk pokaże tylko terminy już wyznaczone przez FSRS. Uczący si
 
 ## 📝 Problem Statement
 
-Zapisane terminy odpowiadają tylko następnej powtórce każdego znaczenia. Bez jawnych założeń o dalszych ocenach nie można z nich wywnioskować kolejnych terminów ani przyszłego obciążenia nauką. Taki scenariusz wymaga odróżnienia od [kalendarza terminów](2026-10-26-fsrs-learning-statistics.md).
+Zapisane terminy odpowiadają tylko następnej powtórce każdego znaczenia. Bez jawnych założeń o dalszych ocenach nie można z nich wywnioskować kolejnych terminów ani przyszłego obciążenia nauką. Taki scenariusz wymaga odróżnienia od [kalendarza terminów](implemented/2026-10-26-fsrs-learning-statistics.md).
 
 ## 📝 Intended Behavior and Scope
 
@@ -22,7 +22,7 @@ Zapisane terminy odpowiadają tylko następnej powtórce każdego znaczenia. Bez
 
 ## 📝 Proposed Solution
 
-Osobna zakładka „Symulacja” przy [statystykach rzeczywistych](2026-10-26-fsrs-learning-statistics.md) pokazuje możliwy rozkład pracy przez 30 dni. Użytkownik ustawia liczbę nowych znaczeń rozpoczynanych dziennie, także zero. Dla każdego już uczonego znaczenia punkt startowy stanowi bieżąca karta FSRS, a dla nowych — istniejące znaczenia bez karty, do wyczerpania ich liczby. Symulacja zakłada, że wszystkie należne powtórki są wykonane w dniu terminu, a następnie rozpoczynana jest zadana liczba nowych znaczeń. Zaległe terminy trafiają do pierwszego dnia; wiele terminów tego samego dnia jest obsługiwanych kolejno według godzin, a dopiero potem sumowanych do dziennego wyniku.
+Osobna zakładka „Symulacja” przy [statystykach rzeczywistych](implemented/2026-10-26-fsrs-learning-statistics.md) pokazuje możliwy rozkład pracy przez 30 dni. Użytkownik ustawia liczbę nowych znaczeń rozpoczynanych dziennie, także zero. Dla każdego już uczonego znaczenia punkt startowy stanowi bieżąca karta FSRS, a dla nowych — istniejące znaczenia bez karty, do wyczerpania ich liczby. Symulacja zakłada, że wszystkie należne powtórki są wykonane w dniu terminu, a następnie rozpoczynana jest zadana liczba nowych znaczeń. Zaległe terminy trafiają do pierwszego dnia; wiele terminów tego samego dnia jest obsługiwanych kolejno według godzin, a dopiero potem sumowanych do dziennego wyniku.
 
 Każda przyszła formalna powtórka ma losowany wynik przypomnienia według prawdopodobieństwa z FSRS. Brak przypomnienia daje Again. Po przypomnieniu Hard, Good lub Easy są losowane według proporcji formalnych pozytywnych ocen w ostatnich 30 dniach. Pierwsza ocena nowego znaczenia korzysta z rozkładu pierwszych ocen nowych znaczeń z tego okresu. Jeżeli takiej próbki nie ma, używa się rozkładu wszystkich formalnych ocen z tego okresu; przy całkowitym braku historii jawnie przyjmuje się Good i oznacza wynik jako oparty na założeniu zastępczym. Lokalne utrwalenie po formalnym Again może być doliczone raz jako osobna próba pracy, zgodnie z bieżącą kolejką, bez zmiany karty FSRS.
 
@@ -97,6 +97,6 @@ Brak blokujących. Użytkownik wybrał automatyczne losowanie według FSRS, prop
 
 ## Related Records
 
-- [Statystyki rzeczywiste](2026-10-26-fsrs-learning-statistics.md)
+- [Statystyki rzeczywiste](implemented/2026-10-26-fsrs-learning-statistics.md)
 - [Ekran Nauka](implemented/2026-10-26-study-screen.md)
 - [Integracja FSRS](implemented/2026-10-26-fsrs-integration.md)

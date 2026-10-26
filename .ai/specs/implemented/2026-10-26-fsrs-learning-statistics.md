@@ -1,11 +1,13 @@
 # Statystyki nauki FSRS
 
-Status: active
+Status: implemented
 Created: 2026-10-26
+Implemented: 2026-10-26 — wszystkie kryteria spełnione; wdrożenie lokalne bez PR.
+Updated: 2026-10-26 — zakres terminów 7/30 dni, zwijane listy i nowa kolejność sekcji na prośbę użytkownika.
 
 ## 📝 TLDR
 
-Uczący się widzi obecnie liczbę należnych powtórek i nowych znaczeń, ale nie może ocenić postępu ani obciążenia nauką w czasie. Proponowany ekran statystyk pokaże historię ocen, skuteczność zapamiętywania, kalendarz już zaplanowanych powtórek oraz rozkłady trudności, stabilności i prawdopodobieństwa przypomnienia na podstawie zapisanych danych FSRS. Symulacja przyszłych ocen należy do [osobnej specyfikacji](2026-10-26-fsrs-future-review-simulation.md).
+Uczący się widzi obecnie liczbę należnych powtórek i nowych znaczeń, ale nie może ocenić postępu ani obciążenia nauką w czasie. Proponowany ekran statystyk pokaże historię ocen, skuteczność zapamiętywania, kalendarz już zaplanowanych powtórek oraz rozkłady trudności, stabilności i prawdopodobieństwa przypomnienia na podstawie zapisanych danych FSRS. Symulacja przyszłych ocen należy do [osobnej specyfikacji](../2026-10-26-fsrs-future-review-simulation.md).
 
 ## 📝 Problem Statement
 
@@ -23,7 +25,7 @@ Obecny ekran Nauka pokazuje tylko bieżącą pracę. `FsrsState`, `FsrsReview` i
 
 Strona „Statystyki nauki” ma pięć czytelnych części. Podsumowanie pokazuje liczbę znaczeń rozpoczętych, nowych i należnych teraz. Historia pokazuje liczby ocen Again, Hard, Good i Easy według dni. Rzeczywista skuteczność pokazuje liczbę udanych pierwszych formalnych ocen znaczenia w dniu, liczbę prób i ich iloraz. Kalendarz pokazuje jeden zapisany termin na każdą rozpoczętą kartę. Ostatnia część pokazuje rozkłady trudności, stabilności i prawdopodobieństwa przypomnienia.
 
-Domyślny zakres historii to 30 dni; można wybrać 7, 30, 90 dni lub całą historię. Wszystkie dni liczy strefa Europe/Warsaw. Kalendarz ma osobny licznik zaległych znaczeń i 30 kolejnych dni zapisanych terminów. Nie zakłada przyszłych ocen ani dalszych terminów po nich. Symulacja to [odrębna funkcja](2026-10-26-fsrs-future-review-simulation.md).
+Domyślny zakres historii to 30 dni; można wybrać 7, 30, 90 dni lub całą historię. Wszystkie dni liczy strefa Europe/Warsaw. Kalendarz ma osobny licznik zaległych znaczeń i wybór 7 lub 30 kolejnych dni zapisanych terminów. Nie zakłada przyszłych ocen ani dalszych terminów po nich. Symulacja to [odrębna funkcja](../2026-10-26-fsrs-future-review-simulation.md).
 
 W [Anki](https://docs.ankiweb.net/manual/stats) historia, true retention, przyszłe terminy i miary pamięci są wyraźnie rozdzielone; pierwsza ocena karty w dniu decyduje o true retention. [Mnemosyne](https://mnemosyne-proj.org/features) również rozdziela harmonogram i retencję. Filippo może pominąć talie, filtry i czas odpowiedzi: nie gromadzi takich danych i ma jednego uczącego się.
 
@@ -41,7 +43,7 @@ Nie są potrzebne nowe encje ani migracja. Źródłami są LexicalSense, FsrsSta
 
 ## 📝 API Contracts
 
-GET /api/study/statistics?history=30d jest odczytem z ograniczoną wartością history: 7d, 30d, 90d albo all. Nieznana wartość zwraca 400. Odpowiedź zawiera asOf, timeZone, summary, history, retention i scheduled. Każdy procent ma licznik i mianownik; przy mianowniku zero procent jest null. History zawiera dzienne liczby czterech formalnych ocen oraz osobną liczbę lokalnych utrwaleń. Retention zawiera wynik ogólny i osobny podzbiór należnych ocen, używany do porównania z docelową retencją FSRS. Bezpośredni FsrsReview bez powiązanego StudyAttempt nie trafia do podzbioru due, a jego liczba jest ujawniona. Scheduled zawiera zaległe, terminy jeszcze dziś, dni następnych 30 dni i terminy poza zakresem.
+GET /api/study/statistics?history=30d&schedule=30d jest odczytem z ograniczoną wartością history: 7d, 30d, 90d albo all oraz schedule: 7d albo 30d. Nieznana wartość zwraca 400. Odpowiedź zawiera asOf, timeZone, summary, history, retention i scheduled. Każdy procent ma licznik i mianownik; przy mianowniku zero procent jest null. History zawiera dzienne liczby czterech formalnych ocen oraz osobną liczbę lokalnych utrwaleń. Retention zawiera wynik ogólny i osobny podzbiór należnych ocen, używany do porównania z docelową retencją FSRS. Bezpośredni FsrsReview bez powiązanego StudyAttempt nie trafia do podzbioru due, a jego liczba jest ujawniona. Scheduled zawiera zaległe, terminy jeszcze dziś, dni następnych 7 lub 30 dni i terminy poza wybranym zakresem.
 
 GET /api/study/statistics/memory, dodany w drugiej fazie, zwraca własne asOf, koszyki i liczebności dla trudności, stabilności oraz prawdopodobieństwa przypomnienia, a także sumę prawdopodobieństw jako szacowaną liczbę pamiętanych znaczeń. Błąd tego odczytu nie zmienia odpowiedzi pierwszego endpointu.
 
@@ -49,7 +51,7 @@ Pierwsza formalna ocena danego znaczenia w dniu Warszawy wchodzi do skutecznośc
 
 ## 📝 UI/UX
 
-Strona jest dostępna z obszaru Nauka i kontynuuje nagłówek, typografię, paletę, karty i zachowanie mobilne istniejącego interfejsu. Krótkie objaśnienia przy każdej miarze mówią, co i w jakim zakresie jest liczone. Wykresy mają także tabelę lub liczby dostępne z klawiatury i dla czytnika ekranu; sam kolor nie rozróżnia ocen. Kalendarz nazywa się „Zaplanowane terminy” i pokazuje moment migawki. Część pamięci może pokazać własny błąd i własny czas odczytu bez zasłaniania pozostałych sekcji. Późniejsza symulacja otrzyma osobną sekcję z oznaczeniem „Scenariusz”, bez pustego miejsca przed jej wdrożeniem.
+Strona jest dostępna z obszaru Nauka i kontynuuje nagłówek, typografię, paletę, karty i zachowanie mobilne istniejącego interfejsu. Pod stanem nauki znajdują się rozkłady pamięci i rzeczywista skuteczność, potem historia ocen i zaplanowane terminy. Wybór zakresu historii jest w sekcji historii; wybór zakresu terminów jest w sekcji terminów. Obie listy dni można zwinąć lub rozwinąć. Krótkie objaśnienia przy każdej miarze mówią, co i w jakim zakresie jest liczone. Wykresy mają także tabelę lub liczby dostępne z klawiatury i dla czytnika ekranu; sam kolor nie rozróżnia ocen. Kalendarz nazywa się „Zaplanowane terminy” i pokazuje moment migawki. Część pamięci może pokazać własny błąd i własny czas odczytu bez zasłaniania pozostałych sekcji. Późniejsza symulacja otrzyma osobną sekcję z oznaczeniem „Scenariusz”, bez pustego miejsca przed jej wdrożeniem.
 
 Przy braku ocen ekran nie pokazuje „0% skuteczności”, lecz „Brak danych”. Po resecie postępu następne wejście pokazuje stan pusty. Wybór zakresu aktualizuje historię i skuteczność; bieżące liczniki, zapisane terminy i rozkłady kart pozostają migawką chwili asOf.
 
@@ -85,13 +87,16 @@ Mała próba daje niestabilny procent, więc mianownik jest zawsze widoczny. Zap
 
 ## Acceptance Criteria
 
-- [ ] Użytkownik otwiera ekran w stylu Filippo i widzi miary z objaśnieniem, zakresem czasu, mianownikiem i stanem pustym.
-- [ ] Historia pokazuje formalne oceny według dni; lokalne utrwalenia są oddzielone.
-- [ ] Skuteczność liczy najwyżej pierwszą formalną ocenę znaczenia w dniu Warszawy; tylko wynik due jest porównywany z docelową retencją.
-- [ ] Kalendarz pokazuje bieżące zapisane terminy, osobno zaległości i przyszłość, bez symulowania kolejnych terminów.
-- [ ] Trudność i stabilność pochodzą z kart; R jest obliczane przez bibliotekę na chwilę odczytu z rewizją karty. Suma R jest pokazana jako szacowana liczba pamiętanych znaczeń.
-- [ ] Odczyt nie zmienia FSRS; po ocenie lub resecie kolejny odczyt pokazuje nowy stan.
-- [ ] Wykresy mają dostępne odpowiedniki liczbowe, a brak historii nie jest przedstawiany jako 0% skuteczności.
+- [x] Użytkownik otwiera ekran w stylu Filippo i widzi miary z objaśnieniem, zakresem czasu, mianownikiem i stanem pustym.
+- [x] Historia pokazuje formalne oceny według dni; lokalne utrwalenia są oddzielone.
+- [x] Skuteczność liczy najwyżej pierwszą formalną ocenę znaczenia w dniu Warszawy; tylko wynik due jest porównywany z docelową retencją.
+- [x] Kalendarz pokazuje bieżące zapisane terminy, osobno zaległości i przyszłość, bez symulowania kolejnych terminów.
+- [x] Trudność i stabilność pochodzą z kart; R jest obliczane przez bibliotekę na chwilę odczytu z rewizją karty. Suma R jest pokazana jako szacowana liczba pamiętanych znaczeń.
+- [x] Odczyt nie zmienia FSRS; po ocenie lub resecie kolejny odczyt pokazuje nowy stan.
+- [x] Wykresy mają dostępne odpowiedniki liczbowe, a brak historii nie jest przedstawiany jako 0% skuteczności.
+- [x] Użytkownik wybiera 7 lub 30 kolejnych dni terminów; licznik poza zakresem odpowiada wyborowi.
+- [x] Listy dni historii i terminów można zwinąć i rozwinąć; wybory zakresów znajdują się w odpowiednich sekcjach.
+- [x] Rozkłady pamięci i rzeczywista skuteczność są bezpośrednio pod stanem nauki.
 
 ## Open Questions
 
@@ -99,6 +104,6 @@ Brak blokujących dla tej specyfikacji. Użytkownik wybrał osobną specyfikacj�
 
 ## Related Records
 
-- [Ekran Nauka](implemented/2026-10-26-study-screen.md)
-- [Integracja FSRS](implemented/2026-10-26-fsrs-integration.md)
-- [Symulacja przyszłych powtórek](2026-10-26-fsrs-future-review-simulation.md)
+- [Ekran Nauka](2026-10-26-study-screen.md)
+- [Integracja FSRS](2026-10-26-fsrs-integration.md)
+- [Symulacja przyszłych powtórek](../2026-10-26-fsrs-future-review-simulation.md)

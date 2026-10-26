@@ -11,13 +11,15 @@ import { LexicalSensesService } from './lexical-senses/lexical-senses.service';
 import { FsrsService } from './fsrs/fsrs.service';
 import { StudyController } from './study/study.controller';
 import { StudyService } from './study/study.service';
+import { StudyStatisticsController } from './study/study-statistics.controller';
+import { StudyStatisticsService } from './study/study-statistics.service';
 
 @Module({
   imports: [DatabaseModule, ServeStaticModule.forRoot(
     { rootPath: join(process.cwd(), 'dist', 'browser'), serveRoot: '/assets' },
     { rootPath: join(process.cwd(), 'public') },
   )],
-  controllers: [TaxonomyController, ProfileController, LexicalSensesController, StudyController],
-  providers: [TaxonomyService, ProfileService, LexicalSensesService, FsrsService, StudyService],
+  controllers: [TaxonomyController, ProfileController, LexicalSensesController, StudyController, StudyStatisticsController],
+  providers: [TaxonomyService, ProfileService, LexicalSensesService, FsrsService, StudyService, StudyStatisticsService],
 })
 export class AppModule {}

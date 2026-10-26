@@ -25,8 +25,6 @@ interface BatchResult {
   coverage: Array<Record<string, unknown>>;
 }
 
-interface Selection { index: number; definition_pl: string; confirmedDistinct?: boolean }
-
 const skillRoot = join(process.cwd(), '.ai/docs/create-lexical-senses');
 const readSkill = (path: string): string => readFileSync(join(skillRoot, path), 'utf8');
 const responseFormat = JSON.parse(readSkill('references/openai.response.format.json')) as { schema: object; strict: boolean };
@@ -109,7 +107,6 @@ function possiblyEquivalent(record: LexicalSense, proposal: SenseRecord): boolea
 @Injectable()
 export class LexicalSensesService implements OnModuleInit, OnModuleDestroy {
   private readonly checks = new Map<string, { items: string[]; expires: number }>();
-  private readonly drafts = new Map<string, { records: SenseRecord[]; expires: number }>();
   private workerTimer?: NodeJS.Timeout;
   private working = false;
 
@@ -156,9 +153,8 @@ export class LexicalSensesService implements OnModuleInit, OnModuleDestroy {
       const claimed = await this.prisma.lexicalSenseGenerationJob.updateMany({ where: { id: queued.id, status: 'queued' }, data: { status: 'running', startedAt: new Date(), errorCode: null, errorMessage: null } });
       if (!claimed.count) return;
       const items = JSON.parse(queued.itemsJson) as string[];
-      this.checks.set(queued.id, { items, expires: Date.now() + 10 * 60_000 });
       try {
-        const batch = await this.generate({ checkId: queued.id, items }) as unknown as BatchResult & { validationWarnings?: unknown };
+        const batch = await this.generate(items);
         await this.prisma.$transaction(async (tx) => {
           await tx.lexicalSenseGenerationJob.update({ where: { id: queued.id }, data: { status: 'ready', resultJson: JSON.stringify({ lexical_senses: batch.lexical_senses, deferred: batch.deferred, coverage: batch.coverage }), validationJson: batch.validationWarnings ? JSON.stringify(batch.validationWarnings) : null, completedAt: new Date() } });
           for (let index = 0; index < batch.lexical_senses.length; index += 1) await tx.lexicalSenseGenerationProposal.create({ data: { jobId: queued.id, senseJson: JSON.stringify(batch.lexical_senses[index]), validationWarningsJson: batch.validationWarnings ? JSON.stringify((batch.validationWarnings as Array<{ recordIndex: number }>).filter((warning) => warning.recordIndex === index)) : null } });
@@ -166,7 +162,7 @@ export class LexicalSensesService implements OnModuleInit, OnModuleDestroy {
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Nie udało się wygenerować propozycji.';
         await this.prisma.lexicalSenseGenerationJob.update({ where: { id: queued.id }, data: { status: 'failed', errorCode: 'generation_failed', errorMessage: message, completedAt: new Date() } });
-      } finally { this.checks.delete(queued.id); }
+      }
     } catch (error) { console.error('[LexicalSense generation worker failure]', error); }
     finally { this.working = false; }
   }
@@ -181,15 +177,32 @@ export class LexicalSensesService implements OnModuleInit, OnModuleDestroy {
   }
 
   async saveGenerationProposal(id: string, body: { definition_pl?: unknown; confirmedDistinct?: unknown }): Promise<Record<string, unknown>> {
-    const proposal = await this.prisma.lexicalSenseGenerationProposal.findUnique({ where: { id } });
-    if (!proposal) throw new NotFoundException('Nie znaleziono propozycji.');
-    if (typeof body.definition_pl !== 'string') throw new BadRequestException('Podaj polskie objaśnienie.');
-    const draftId = randomUUID();
-    this.drafts.set(draftId, { records: [JSON.parse(proposal.senseJson) as SenseRecord], expires: Date.now() + 60_000 });
-    const result = await this.save({ draftId, selected: [{ index: 0, definition_pl: body.definition_pl, confirmedDistinct: body.confirmedDistinct === true }] });
-    const verdict = result.results[0];
-    if (verdict.status === 'saved') await this.prisma.lexicalSenseGenerationProposal.delete({ where: { id } });
-    return verdict;
+    if (typeof body?.definition_pl !== 'string' || !body.definition_pl.trim() || body.definition_pl.length > 2000 || (body.confirmedDistinct !== undefined && typeof body.confirmedDistinct !== 'boolean')) {
+      throw new BadRequestException('Podaj poprawne polskie objaśnienie.');
+    }
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const proposal = await tx.lexicalSenseGenerationProposal.findUnique({ where: { id } });
+        if (!proposal) throw new NotFoundException('Nie znaleziono propozycji.');
+        const record = { ...JSON.parse(proposal.senseJson) as SenseRecord, definition_pl: (body.definition_pl as string).trim() };
+        if (!validateSense(record)) throw new BadRequestException('Poprawiony LexicalSense nie spełnia schematu.');
+        const candidates = await tx.lexicalSense.findMany({ where: { language: 'it' } });
+        const duplicate = candidates.find((candidate) => equivalent(candidate, record));
+        if (duplicate) return { status: 'conflict', id: duplicate.id };
+        const possible = candidates.filter((candidate) => possiblyEquivalent(candidate, record));
+        if (possible.length && !body.confirmedDistinct) return { status: 'review_required', existing: possible.map(publicSense) };
+        const stored = await tx.lexicalSense.create({ data: {
+          language: record.language, lexicalItem: record.lexical_item_it, definition: record.definition_it,
+          detailsJson: JSON.stringify(record), identityKey: identity(record),
+        } });
+        await tx.lexicalSenseGenerationProposal.delete({ where: { id } });
+        return { status: 'saved', id: stored.id };
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (error) {
+      if (error instanceof BadRequestException || error instanceof NotFoundException) throw error;
+      if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === 'P2002' || error.code === 'P2034')) return { status: 'conflict' };
+      throw new ServiceUnavailableException('Nie udało się zapisać do bazy. Spróbuj ponownie.');
+    }
   }
 
   async rejectGenerationProposal(id: string): Promise<void> {
@@ -204,7 +217,6 @@ export class LexicalSensesService implements OnModuleInit, OnModuleDestroy {
   private pruneExpired(): void {
     const now = Date.now();
     for (const [key, value] of this.checks) if (value.expires < now) this.checks.delete(key);
-    for (const [key, value] of this.drafts) if (value.expires < now) this.drafts.delete(key);
   }
 
   private cleanItems(value: unknown): string[] {
@@ -327,9 +339,7 @@ export class LexicalSensesService implements OnModuleInit, OnModuleDestroy {
     return items;
   }
 
-  async generate(body: { checkId?: unknown; items?: unknown }): Promise<Record<string, unknown>> {
-    this.pruneExpired();
-    const items = this.verifiedItems(body);
+  async generate(items: string[]): Promise<BatchResult & { validationWarnings: Array<{ recordIndex: number; lexicalItem: string; warnings: string[] }> }> {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) throw new BadGatewayException('Brak konfiguracji OpenAI na serwerze.');
     let existing: Record<string, unknown>[];
@@ -382,51 +392,7 @@ export class LexicalSensesService implements OnModuleInit, OnModuleDestroy {
     if (new Set(validBatch.lexical_senses.map(identity)).size !== validBatch.lexical_senses.length) {
       await this.rejectGeneratedResponse('OpenAI zwróciło powtórzone znaczenia.', raw, ['W odpowiedzi występuje zduplikowana tożsamość znaczenia.'], resultId);
     }
-    let related: LexicalSense[];
-    try { related = await this.existingFor(validBatch.lexical_senses.map((record) => record.lexical_item_it).filter((item, index, all) => all.indexOf(item) === index)); }
-    catch { throw new ServiceUnavailableException('Baza danych jest chwilowo niedostępna. Spróbuj ponownie.'); }
-    const matches = validBatch.lexical_senses.map((record) => related.filter((stored) => sameItem(stored, record)).map((stored) => ({
-      ...publicSense(stored), equivalent: equivalent(stored, record), possible: possiblyEquivalent(stored, record),
-    })));
-    const draftId = randomUUID();
-    this.drafts.set(draftId, { records: validBatch.lexical_senses, expires: Date.now() + 60 * 60_000 });
     await this.markGenerationResult(resultId, validationWarnings.length ? 'accepted_with_warnings' : 'accepted', validationWarnings.length ? validationWarnings : undefined);
-    return { draftId, ...validBatch, matches, validationWarnings };
-  }
-
-  async save(body: { draftId?: unknown; selected?: unknown }): Promise<{ results: Array<Record<string, unknown>> }> {
-    const draft = typeof body?.draftId === 'string' ? this.drafts.get(body.draftId) : undefined;
-    if (!draft || draft.expires < Date.now()) throw new BadRequestException('Wynik generowania wygasł. Wygeneruj go ponownie.');
-    if (!Array.isArray(body.selected) || body.selected.length < 1 || body.selected.length > draft.records.length) throw new BadRequestException('Wybierz co najmniej jeden poprawny LexicalSense.');
-    const selected = body.selected as Selection[];
-    if (selected.some((item) => !Number.isInteger(item?.index) || item.index < 0 || item.index >= draft.records.length || typeof item.definition_pl !== 'string' || !item.definition_pl.trim() || item.definition_pl.length > 2000 || (item.confirmedDistinct !== undefined && typeof item.confirmedDistinct !== 'boolean')) || new Set(selected.map((item) => item.index)).size !== selected.length) {
-      throw new BadRequestException('Wybór lub polskie objaśnienie są niepoprawne.');
-    }
-    const results: Array<Record<string, unknown>> = [];
-    for (const item of selected) {
-      const record = { ...draft.records[item.index], definition_pl: item.definition_pl.trim() };
-      if (!validateSense(record)) throw new BadRequestException('Poprawiony LexicalSense nie spełnia schematu.');
-      const key = identity(record);
-      try {
-        const result = await this.prisma.$transaction(async (tx) => {
-          const candidates = await tx.lexicalSense.findMany({ where: { language: 'it' } });
-          const duplicate = candidates.find((candidate) => equivalent(candidate, record));
-          if (duplicate) return { index: item.index, status: 'conflict', id: duplicate.id };
-          const possible = candidates.filter((candidate) => possiblyEquivalent(candidate, record));
-          if (possible.length && !item.confirmedDistinct) return { index: item.index, status: 'review_required', existing: possible.map(publicSense) };
-          const stored = await tx.lexicalSense.create({ data: {
-            language: record.language, lexicalItem: record.lexical_item_it, definition: record.definition_it,
-            detailsJson: JSON.stringify(record), identityKey: key,
-          } });
-          return { index: item.index, status: 'saved', id: stored.id };
-        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-        results.push(result);
-      } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === 'P2002' || error.code === 'P2034')) {
-          results.push({ index: item.index, status: 'conflict' });
-        } else throw new ServiceUnavailableException('Nie udało się zapisać do bazy. Spróbuj ponownie.');
-      }
-    }
-    return { results };
+    return { ...validBatch, validationWarnings };
   }
 }

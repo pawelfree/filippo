@@ -15,9 +15,8 @@ test('explains an exhausted OpenAI credit balance', async () => {
 
   try {
     const service = new LexicalSensesService({ lexicalSense: { findMany: async () => [] } } as never);
-    const checked = await service.check({ items: ['ponte'] });
     await assert.rejects(
-      service.generate({ checkId: String(checked.checkId), items: ['ponte'] }),
+      service.generate(['ponte']),
       (error: unknown) => error instanceof HttpException
         && error.getStatus() === 429
         && String(error.getResponse()).includes('Wyczerpano środki API'),
@@ -64,8 +63,7 @@ test('returns a LexicalSense with evidence warnings for user review', async () =
 
   try {
     const service = new LexicalSensesService(prisma as never);
-    const checked = await service.check({ items: ['ponte'] });
-    const result = await service.generate({ checkId: String(checked.checkId), items: ['ponte'] }) as { lexical_senses: unknown[]; validationWarnings: Array<{ recordIndex: number; warnings: string[] }> };
+    const result = await service.generate(['ponte']) as { lexical_senses: unknown[]; validationWarnings: Array<{ recordIndex: number; warnings: string[] }> };
     assert.equal(result.lexical_senses.length, 1);
     assert.equal(result.validationWarnings[0].recordIndex, 0);
     assert.match(result.validationWarnings[0].warnings.join(' '), /part_of_speech/);

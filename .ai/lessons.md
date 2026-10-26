@@ -2,6 +2,8 @@
 
 Read this index before working on related areas. Add concise, evidence-based lessons here after a bug fix or other reusable finding. Put longer explanations in `lessons/YYYY-MM-DD-slug.md` and link them from the entry.
 
+- Dla długiego zadania AI zwracaj `202` po zapisaniu zadania, a wynik i decyzje użytkownika utrwalaj w bazie; pamięciowy draft wymusza utrzymywanie otwartej karty i ginie po restarcie. Zapis znaczenia oraz usunięcie oczekującej propozycji wykonuj w jednej transakcji. Dotyczy generowania LexicalSense; zobacz [run](runs/2026-10-26-finish-asynchronous-lexical-sense-generation.md).
+
 - Keep CSS for a navigation component shared by multiple pages in an asset loaded by every page. The LexicalSense page rendered browser-default links because `.page-nav` lived only in `profile.css`; moving the rules to shared `styles.css` restored styling across all three views. Applies to shared page chrome; see the [fix run](runs/2026-10-25-lexical-navigation-style-fix.md).
 - Preserve and classify safe upstream API error codes at the server boundary. Returning only an HTTP status made OpenAI 429 failures indistinguishable; mapping documented codes to action-oriented messages lets the LexicalSense interface explain whether credits, spend limits, or request pace caused the failure. Applies to external API integrations; see the [implementation run](runs/2026-10-25-openai-limit-error-feedback.md).
 - Do not leave a transport-error catch empty around an external API call. Log a concise, labeled error without credentials so the server operator can distinguish DNS, timeout, TLS, and connection failures from API responses; see the [connection log run](runs/2026-10-25-openai-connection-error-log.md).

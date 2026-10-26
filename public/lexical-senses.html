@@ -22,7 +22,7 @@
         <div>
           <p class="eyebrow">Włoskie słownictwo</p>
           <h1>Dodaj <em>znaczenia</em></h1>
-          <p>Wpisz słowa lub całe wyrażenia. Sprawdź istniejące znaczenia, przejrzyj propozycje i zapisz tylko wybrane.</p>
+          <p>Wpisz słowa lub całe wyrażenia. Sprawdź istniejące znaczenia i zleć generowanie propozycji do późniejszego przetworzenia.</p>
         </div>
       </section>
       <div id="status" class="status" role="status" aria-live="polite"></div>
@@ -41,14 +41,7 @@
         <div class="actions"><button id="generate-senses" type="button" disabled>Generuj propozycje</button></div>
         <div id="existing-list"></div>
       </section>
-      <section id="proposal-section" class="lexical-panel" aria-labelledby="proposal-heading" hidden>
-        <div class="section-heading"><span>03 / Przegląd</span><h2 id="proposal-heading">Propozycje LexicalSense</h2></div>
-        <div id="proposal-list"></div>
-        <div id="deferred-list"></div>
-        <div id="coverage-list"></div>
-        <div class="actions"><button id="save-senses" type="button" disabled>Zapisz wybrane znaczenia</button></div>
-        <div id="save-result" aria-live="polite"></div>
-      </section>
+      <div id="save-result" aria-live="polite"></div>
     </main>
   </body>
 </html>

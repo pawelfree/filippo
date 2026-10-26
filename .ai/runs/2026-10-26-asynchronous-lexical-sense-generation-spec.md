@@ -9,7 +9,7 @@ Przygotować interaktywny szkic specyfikacji dla trwałego, asynchronicznego gen
 
 ## Related spec
 
-- [Asynchroniczne generowanie LexicalSense](../specs/2026-10-26-asynchronous-lexical-sense-generation.md)
+- [Asynchroniczne generowanie LexicalSense](../specs/implemented/2026-10-26-asynchronous-lexical-sense-generation.md)
 
 ## Actions and evidence
 

@@ -2,6 +2,9 @@
 
 Read this index before working on related areas. Add concise, evidence-based lessons here after a bug fix or other reusable finding. Put longer explanations in `lessons/YYYY-MM-DD-slug.md` and link them from the entry.
 
+- Różne tryby nauki korzystające z jednego FSRS powinny współdzielić wybór kolejki i historię prób. W cloze osobna selekcja oraz brak `StudyAttempt` ukrywały utrwalenia przed ekranem „Nauka”; zobacz [integrację FSRS](runs/2026-11-03-cloze-fsrs-queue.md).
+- Przy serii ćwiczeń zachowuj poprzednie rekordy i trwały przydział do sesji. Utrwalenie lokalne używa tego samego rekordu, kolejna sesja niewykorzystanego rekordu, a wyczerpanie puli uruchamia nowy zestaw; zobacz [integrację cloze](runs/2026-11-03-cloze-fsrs-queue.md).
+
 - Akcja ręcznego odświeżenia powinna wyraźnie wyglądać na dostępną i sygnalizować trwający odczyt na samym przycisku, bez zbędnego potwierdzenia sukcesu. Gdy automatyczny odczyt już trwa, zapamiętaj ręczne żądanie zamiast cicho je pomijać; zobacz [widok stanu cloze](runs/2026-11-03-cloze-refresh-control.md).
 
 - Postęp zakończonego lub przerwanego generowania zapisuj w rekordzie zlecenia podczas pracy. Wyliczanie go z obecnej puli ćwiczeń zmieniało historię starego zlecenia po nowym generowaniu; starsze rekordy bez licznika oznacz jako nieznane. Zobacz [poprawkę cloze](runs/2026-11-03-cloze-progress-and-answer-feedback.md).

@@ -5,6 +5,7 @@ import { ClozeService } from './cloze.service';
 export class ClozeController {
   constructor(@Inject(ClozeService) private readonly cloze: ClozeService) {}
 
+  @Get('overview') overview() { return this.cloze.overview(); }
   @Post('sessions') create(@Body() body: { count?: unknown }) { return this.cloze.createSession(body?.count); }
   @Get('sessions') sessions() { return this.cloze.listSessions(); }
   @Get('sessions/:id') session(@Param('id') id: string) { return this.cloze.session(id); }

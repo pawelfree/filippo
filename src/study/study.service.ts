@@ -14,7 +14,7 @@ type Next = Counts & { candidate: Candidate | null };
 const learnerId = 'local';
 const warsawDay = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Warsaw', year: 'numeric', month: '2-digit', day: '2-digit' });
 
-function dayKey(now: Date): string {
+export function dayKey(now: Date): string {
   const parts = Object.fromEntries(warsawDay.formatToParts(now).map(({ type, value }) => [type, value]));
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
@@ -49,10 +49,10 @@ export class StudyService {
     return { latest, formalKind };
   }
 
-  private async snapshot(db: StudyDb, now: Date): Promise<Next> {
+  private async snapshot(db: StudyDb, now: Date, excluded: ReadonlySet<string> = new Set()): Promise<Next> {
     const day = dayKey(now);
     const [due, future, newCount, today, config] = await Promise.all([
-      db.fsrsState.findMany({ where: { learnerId, dueAt: { lte: now } }, include: { lexicalSense: true }, orderBy: [{ dueAt: 'asc' }, { lexicalSenseId: 'asc' }] }),
+      db.fsrsState.findMany({ where: { learnerId, dueAt: { lte: now }, lexicalSenseId: { notIn: [...excluded] } }, include: { lexicalSense: true }, orderBy: [{ dueAt: 'asc' }, { lexicalSenseId: 'asc' }] }),
       db.fsrsState.findFirst({ where: { learnerId, dueAt: { gt: now } }, select: { dueAt: true }, orderBy: { dueAt: 'asc' } }),
       db.lexicalSense.count({ where: { fsrsStates: { none: {} } } }),
       this.todayAttempts(db, day),
@@ -61,13 +61,13 @@ export class StudyService {
     const incomplete = await db.fsrsState.findFirst({ where: { OR: [{ learnerId: { not: learnerId } }, { schedulerData: null }, { configRevision: null }] }, select: { id: true } });
     if (incomplete) throw new ConflictException('Starszy stan FSRS wymaga migracji przed użyciem.');
     const dueIds = new Set(due.map((state) => state.lexicalSenseId));
-    const pending = [...today.latest.values()].filter((attempt) => attempt.rating === Rating.Again && attempt.kind !== 'reinforcement' && !dueIds.has(attempt.lexicalSenseId)).sort((a, b) => a.reviewedAt.getTime() - b.reviewedAt.getTime() || a.eventId.localeCompare(b.eventId));
+    const pending = [...today.latest.values()].filter((attempt) => attempt.rating === Rating.Again && attempt.kind !== 'reinforcement' && !dueIds.has(attempt.lexicalSenseId) && !excluded.has(attempt.lexicalSenseId)).sort((a, b) => a.reviewedAt.getTime() - b.reviewedAt.getTime() || a.eventId.localeCompare(b.eventId));
     const pendingStates = pending.length ? await db.fsrsState.findMany({ where: { learnerId, lexicalSenseId: { in: pending.map((item) => item.lexicalSenseId) } }, include: { lexicalSense: true } }) : [];
     const pendingById = new Map(pendingStates.map((state) => [state.lexicalSenseId, state]));
     const reinforcement = pending.filter((attempt) => pendingById.has(attempt.lexicalSenseId));
     const dueReinforcement = reinforcement.filter((attempt) => today.formalKind.get(attempt.lexicalSenseId) === 'due');
     const newReinforcement = reinforcement.filter((attempt) => today.formalKind.get(attempt.lexicalSenseId) !== 'due');
-    const newSense = due.length || dueReinforcement.length ? null : await db.lexicalSense.findFirst({ where: { fsrsStates: { none: {} } }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] });
+    const newSense = due.length || dueReinforcement.length ? null : await db.lexicalSense.findFirst({ where: { fsrsStates: { none: {} }, id: { notIn: [...excluded] } }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] });
     const selectedReinforcement = dueReinforcement[0] ?? (newSense ? null : newReinforcement[0]);
     const selected = due[0] ? { kind: 'due' as const, sense: due[0].lexicalSense, state: due[0] } : selectedReinforcement ? { kind: 'reinforcement' as const, sense: pendingById.get(selectedReinforcement.lexicalSenseId)!.lexicalSense, state: pendingById.get(selectedReinforcement.lexicalSenseId)! } : newSense ? { kind: 'new' as const, sense: newSense, state: null } : null;
     if (selected?.state) this.fsrs.readStoredCard(selected.state);
@@ -87,6 +87,20 @@ export class StudyService {
   }
 
   async next(): Promise<Next> { await this.fsrs.getConfig(); return this.snapshot(this.prisma, new Date()); }
+
+  async selectForCloze(limit: number): Promise<Array<{ lexicalSenseId: string; kind: Kind }>> {
+    await this.fsrs.getConfig();
+    const selected: Array<{ lexicalSenseId: string; kind: Kind }> = [];
+    const excluded = new Set<string>();
+    const now = new Date();
+    while (selected.length < limit) {
+      const candidate = (await this.snapshot(this.prisma, now, excluded)).candidate;
+      if (!candidate) break;
+      selected.push({ lexicalSenseId: candidate.lexicalSenseId, kind: candidate.kind });
+      excluded.add(candidate.lexicalSenseId);
+    }
+    return selected;
+  }
 
   async reset(): Promise<Counts> {
     await this.fsrs.getConfig();

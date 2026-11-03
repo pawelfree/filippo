@@ -16,6 +16,7 @@ test('cloze screen renders Polish sentence and one input per gap, then finishes 
     const card = { position: 0, exerciseId: 'ex-1', exercise: { sentence_pl: 'Deszcz dał nam wytchnienie.', prompt: [{ text: 'La pioggia ha dato ' }, { gap_id: 'g1' }, { text: ' ' }, { gap_id: 'g2' }, { text: '.' }] } };
     let answered = false;
     (window as any).fetch = async (_path: string, options?: RequestInit) => {
+      if (_path === '/api/cloze/overview') return { ok: true, json: async () => ({ dueCount: 0, reinforcementCount: 0, newCount: 1 }) };
       if (_path === '/api/cloze/sessions' && !options?.method) return { ok: true, json: async () => [] };
       if (options?.method === 'POST' && _path.endsWith('/answers')) {
         answered = true;
@@ -54,7 +55,9 @@ test('missing saved cloze session returns to the start form', async () => {
   try {
     const { window } = dom;
     window.localStorage.setItem('filippo.cloze.session', 'deleted-session');
-    (window as any).fetch = async (path: string) => path === '/api/cloze/sessions'
+    (window as any).fetch = async (path: string) => path === '/api/cloze/overview'
+      ? { ok: true, json: async () => ({ dueCount: 0, reinforcementCount: 0, newCount: 1 }) }
+      : path === '/api/cloze/sessions'
       ? { ok: true, json: async () => [] }
       : { ok: false, status: 404, json: async () => ({ message: 'Nie znaleziono sesji cloze.' }) };
     window.eval(script);
@@ -79,6 +82,7 @@ test('wrong answer shows the solution and Again before the next meaning', async 
     const advanced = { ...started, completedCount: 1, current: second };
     let answered = false;
     (window as any).fetch = async (path: string, options?: RequestInit) => {
+      if (path === '/api/cloze/overview') return { ok: true, json: async () => ({ dueCount: 1, reinforcementCount: 0, newCount: 1 }) };
       if (path === '/api/cloze/sessions' && !options?.method) return { ok: true, json: async () => [] };
       if (path.endsWith('/answers')) {
         answered = true;
@@ -101,7 +105,7 @@ test('wrong answer shows the solution and Again before the next meaning', async 
     try {
       resume.window.localStorage.setItem('filippo.cloze.session', 'session-2');
       resume.window.localStorage.setItem('filippo.cloze.feedback', window.localStorage.getItem('filippo.cloze.feedback')!);
-      (resume.window as any).fetch = async (path: string) => ({ ok: true, json: async () => path === '/api/cloze/sessions' ? [] : advanced });
+      (resume.window as any).fetch = async (path: string) => ({ ok: true, json: async () => path === '/api/cloze/sessions' ? [] : path === '/api/cloze/overview' ? { dueCount: 1, reinforcementCount: 0, newCount: 1 } : advanced });
       resume.window.eval(script);
       await new Promise((resolve) => setTimeout(resolve, 0));
       assert.equal(resume.window.document.getElementById('cloze-polish')!.textContent, 'Krótka przerwa.');
@@ -124,6 +128,7 @@ test('queued cloze session shows generation progress separately from study progr
     const running = { id: 'session-1', status: 'running', requestedCount: 5, completedCount: 0, generation: { processed: 2, total: 5 }, failures: {}, current: null, finished: false };
     let historyReads = 0;
     (window as any).fetch = async (path: string, options?: RequestInit) => {
+      if (path === '/api/cloze/overview') return { ok: true, json: async () => ({ dueCount: 2, reinforcementCount: 1, newCount: 3 }) };
       if (path === '/api/cloze/sessions' && !options?.method) historyReads += 1;
       return { ok: true, json: async () => path === '/api/cloze/sessions' && !options?.method ? [{ ...running, createdAt: '2026-11-03T10:00:00.000Z' }] : running };
     };
@@ -134,6 +139,8 @@ test('queued cloze session shows generation progress separately from study progr
     assert.match(window.document.getElementById('cloze-generation')!.textContent!, /Trwa generowanie.*Przetworzono: 2 z 5 zestawów/);
     assert.match(window.document.getElementById('cloze-jobs')!.textContent!, /Generowanie.*2 z 5 zestawów/);
     assert.equal(window.document.querySelectorAll('#cloze-job-tabs button').length, 5);
+    assert.equal(window.document.getElementById('cloze-overview-due')!.textContent, '2');
+    assert.equal(window.document.getElementById('cloze-session-reinforcement')!.textContent, '1');
     const queuedTab = [...window.document.querySelectorAll<HTMLButtonElement>('#cloze-job-tabs button')].find((button) => button.textContent?.startsWith('W kolejce'))!;
     queuedTab.click();
     assert.match(window.document.getElementById('cloze-jobs')!.textContent!, /Brak zleceń w tym stanie/);
@@ -161,7 +168,8 @@ test('refresh requested during a history read starts another read', async () => 
     let release!: () => void;
     const first = new Promise<void>((resolve) => { release = resolve; });
     let reads = 0;
-    (dom.window as any).fetch = async () => {
+    (dom.window as any).fetch = async (path: string) => {
+      if (path === '/api/cloze/overview') return { ok: true, json: async () => ({ dueCount: 0, reinforcementCount: 0, newCount: 0 }) };
       reads += 1;
       if (reads === 1) await first;
       return { ok: true, json: async () => [] };

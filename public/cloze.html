@@ -6,6 +6,7 @@
     <title>Filippo · Nauka cloze</title>
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/lexical-senses.css" />
+    <link rel="stylesheet" href="/study.css" />
     <link rel="stylesheet" href="/cloze.css" />
     <script src="/assets/cloze.js" defer></script>
   </head>
@@ -26,16 +27,27 @@
       <div id="cloze-status" class="status" role="status" aria-live="polite"></div>
       <div id="cloze-error" class="error" role="alert" hidden></div>
       <section id="cloze-start" class="lexical-panel">
-        <div class="section-heading"><span>Nowa sesja</span><h2>Ile znaczeń chcesz przećwiczyć?</h2></div>
+        <div class="section-heading"><span>Przegląd</span><h2>Dziś do nauki</h2></div>
+        <div class="study-counters" aria-live="polite">
+          <div class="study-counter"><strong id="cloze-overview-due">—</strong><span>Do powtórki teraz</span></div>
+          <div class="study-counter"><strong id="cloze-overview-new">—</strong><span>Nowe znaczenia</span></div>
+        </div>
+        <h3>Ile znaczeń chcesz przećwiczyć?</h3>
         <form id="cloze-start-form" class="cloze-start-form">
           <label for="cloze-count">Liczba słów lub wyrażeń</label>
           <input id="cloze-count" type="number" min="1" max="20" value="5" required />
-          <button type="submit">Rozpocznij</button>
+          <button id="cloze-start-submit" type="submit" disabled>Rozpocznij</button>
         </form>
+        <p id="cloze-overview-note" class="hint"></p>
         <p class="hint">Brakujące ćwiczenia zostaną wygenerowane i zapisane. W tej sesji zobaczysz pierwsze ćwiczenie każdego wybranego znaczenia.</p>
       </section>
       <section id="cloze-session" class="lexical-panel" hidden>
         <div class="section-heading"><span>Sesja cloze</span><h2 id="cloze-progress">Przygotowywanie…</h2></div>
+        <div class="study-counters study-counters-session" aria-live="polite">
+          <div class="study-counter"><strong id="cloze-session-due">—</strong><span>Do powtórki</span></div>
+          <div class="study-counter"><strong id="cloze-session-reinforcement">—</strong><span>Do utrwalenia</span></div>
+          <div class="study-counter"><strong id="cloze-session-new">—</strong><span>Nowe znaczenia</span></div>
+        </div>
         <p id="cloze-generation" class="hint"></p>
         <div id="cloze-failures" class="cloze-failures" hidden></div>
         <article id="cloze-card" class="cloze-card" hidden>

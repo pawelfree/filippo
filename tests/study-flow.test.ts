@@ -29,11 +29,19 @@ test('a forgotten new meaning returns after the other new meanings', async () =>
     const study = new StudyService(prisma as never, new FsrsService(prisma as never));
     const initial = await study.next();
     assert.equal(initial.candidate?.lexicalSenseId, first.id);
+    assert.deepEqual(await study.selectForCloze(2), [
+      { lexicalSenseId: first.id, kind: 'new' },
+      { lexicalSenseId: second.id, kind: 'new' },
+    ]);
     const forgotten = await study.record({ eventId: randomUUID(), lexicalSenseId: first.id, presentationToken: initial.candidate!.presentationToken, rating: Rating.Again });
     assert.equal(forgotten.reinforcementCount, 1);
     assert.equal(forgotten.newCount, 1);
     assert.equal(forgotten.candidate?.lexicalSenseId, second.id);
     assert.equal(forgotten.candidate?.kind, 'new');
+    assert.deepEqual(await study.selectForCloze(2), [
+      { lexicalSenseId: second.id, kind: 'new' },
+      { lexicalSenseId: first.id, kind: 'reinforcement' },
+    ]);
     const learned = await study.record({ eventId: randomUUID(), lexicalSenseId: second.id, presentationToken: forgotten.candidate!.presentationToken, rating: Rating.Good });
     assert.equal(learned.candidate?.lexicalSenseId, first.id);
     assert.equal(learned.candidate?.kind, 'reinforcement');

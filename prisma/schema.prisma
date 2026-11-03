@@ -28,17 +28,20 @@ model ClozeExercise {
   id             String       @id @default(cuid())
   lexicalSenseId String
   position       Int
+  batch          Int          @default(1)
   contentJson    String
   createdAt      DateTime     @default(now())
   lexicalSense   LexicalSense @relation(fields: [lexicalSenseId], references: [id], onDelete: Restrict)
   attempts       ClozeAttempt[]
 
-  @@unique([lexicalSenseId, position])
+  @@unique([lexicalSenseId, batch, position])
 }
 
 model ClozeSession {
   id              String         @id @default(cuid())
   selectedIdsJson String
+  selectedKindsJson String       @default("{}")
+  exerciseIdsJson String         @default("{}")
   failuresJson    String         @default("{}")
   status          String         @default("queued")
   cursor          Int            @default(0)

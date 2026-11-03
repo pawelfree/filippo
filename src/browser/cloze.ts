@@ -3,6 +3,8 @@ const startPanel = document.getElementById('cloze-start')!;
 const sessionPanel = document.getElementById('cloze-session')!;
 const startForm = document.getElementById('cloze-start-form') as HTMLFormElement;
 const count = document.getElementById('cloze-count') as HTMLInputElement;
+const startSubmit = document.getElementById('cloze-start-submit') as HTMLButtonElement;
+const overviewNote = document.getElementById('cloze-overview-note')!;
 const answerForm = document.getElementById('cloze-answer-form') as HTMLFormElement;
 const submit = document.getElementById('cloze-submit') as HTMLButtonElement;
 const card = document.getElementById('cloze-card')!;
@@ -41,6 +43,19 @@ let historyRefreshRequested = false;
 function setError(message: string) { error.textContent = message; error.hidden = !message; }
 function setStatus(message: string) { status.textContent = message; }
 function setBusy(value: boolean) { busy = value; submit.disabled = value || !!pending; retry.hidden = !pending; retry.disabled = value; newButton.disabled = value || !!pending; }
+async function loadOverview() {
+  try {
+    const data = await request('/api/cloze/overview');
+    document.getElementById('cloze-overview-due')!.textContent = String(data.dueCount);
+    document.getElementById('cloze-overview-new')!.textContent = String(data.newCount);
+    document.getElementById('cloze-session-due')!.textContent = String(data.dueCount);
+    document.getElementById('cloze-session-reinforcement')!.textContent = String(data.reinforcementCount);
+    document.getElementById('cloze-session-new')!.textContent = String(data.newCount);
+    const available = data.dueCount + data.reinforcementCount + data.newCount > 0;
+    startSubmit.disabled = !available;
+    overviewNote.textContent = available ? '' : data.nextDueAt ? `Na teraz wszystko gotowe. Następna powtórka: ${new Date(data.nextDueAt).toLocaleString('pl-PL')}.` : 'Na teraz wszystko gotowe.';
+  } catch (cause: any) { setError(cause.message); }
+}
 async function request(url: string, options?: RequestInit) {
   const response = await fetch(url, options);
   const data = await response.json();
@@ -134,6 +149,7 @@ function render(data: any) {
   feedbackPanel.hidden = true; submit.hidden = false;
   current = data.current;
   void loadHistory();
+  if (data.status === 'ready') void loadOverview();
   if (data.status === 'queued' || data.status === 'running') {
     const state = data.status === 'queued' ? 'W kolejce.' : 'Trwa generowanie.';
     generation.textContent = `${state} Przetworzono: ${generationProgress(data)}. Możesz wrócić na tę stronę później.`;
@@ -146,7 +162,7 @@ function render(data: any) {
   }
   generation.textContent = `Generowanie zakończone. Przetworzono: ${generationProgress(data)}.`;
   if (feedback?.sessionId === sessionId && feedback.accepted?.exercise) {
-    progress.textContent = `${feedback.position + 1} z ${data.requestedCount} znaczeń`;
+    progress.textContent = `${feedback.accepted.kind === 'reinforcement' ? 'Utrwalenie · ' : ''}${Math.min(data.completedCount, data.requestedCount)} z ${data.requestedCount} znaczeń`;
     renderExercise(feedback.accepted.exercise);
     for (const input of prompt.querySelectorAll<HTMLInputElement>('input')) {
       input.value = feedback.responses?.[input.dataset.gap!] ?? '';
@@ -161,7 +177,7 @@ function render(data: any) {
     return;
   }
   if (data.finished || !current) { setStatus('Sesja zakończona.'); return; }
-  progress.textContent = `${current.position + 1} z ${data.requestedCount} znaczeń`;
+  progress.textContent = `${current.kind === 'reinforcement' ? 'Utrwalenie · ' : ''}${Math.min(data.completedCount + (current.kind === 'reinforcement' ? 0 : 1), data.requestedCount)} z ${data.requestedCount} znaczeń`;
   renderExercise(current.exercise);
   prompt.querySelector('input')?.focus();
   setStatus('Wpisz osobno każde brakujące słowo.');
@@ -239,4 +255,5 @@ newButton.addEventListener('click', () => {
 historyRefresh.addEventListener('click', () => { void loadHistory(true); });
 if (sessionId) { startPanel.hidden = true; sessionPanel.hidden = false; void load().then(() => { if (pending) void sendPending(); }); }
 void loadHistory();
+void loadOverview();
 })();

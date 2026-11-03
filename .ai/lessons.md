@@ -2,6 +2,14 @@
 
 Read this index before working on related areas. Add concise, evidence-based lessons here after a bug fix or other reusable finding. Put longer explanations in `lessons/YYYY-MM-DD-slug.md` and link them from the entry.
 
+- Akcja ręcznego odświeżenia powinna wyraźnie wyglądać na dostępną i sygnalizować trwający odczyt na samym przycisku, bez zbędnego potwierdzenia sukcesu. Gdy automatyczny odczyt już trwa, zapamiętaj ręczne żądanie zamiast cicho je pomijać; zobacz [widok stanu cloze](runs/2026-11-03-cloze-refresh-control.md).
+
+- Postęp zakończonego lub przerwanego generowania zapisuj w rekordzie zlecenia podczas pracy. Wyliczanie go z obecnej puli ćwiczeń zmieniało historię starego zlecenia po nowym generowaniu; starsze rekordy bez licznika oznacz jako nieznane. Zobacz [poprawkę cloze](runs/2026-11-03-cloze-progress-and-answer-feedback.md).
+- Po zapisaniu oceny zachowaj informację zwrotną do jawnego przejścia dalej. Odpowiedź API może już wskazywać kolejne ćwiczenie, ale natychmiastowe renderowanie go ukrywa rozwiązanie poprzedniego. Zobacz [poprawkę cloze](runs/2026-11-03-cloze-progress-and-answer-feedback.md).
+
+- Historia zleceń generowania służy do obserwacji stanu i błędów. Nie dodawaj w niej akcji otwierania sesji nauki, jeśli użytkownik oczekuje tylko informacji o generowaniu; zobacz [korektę widoku cloze](runs/2026-11-03-cloze-generation-status.md).
+
+- Worker AI musi sprawdzić istnienie i stan zadania po oczekiwaniu na model, a zapis wyniku i postępu wykonać atomowo. Reset może w tym czasie usunąć sesję; zwykłe `update()` po generowaniu spowodowało `P2025` i zapis osieroconych ćwiczeń. Zobacz [naprawę workera cloze](runs/2026-11-03-cloze-worker-session-deletion.md).
 - Gdy serwer korzysta ze skilla zapisanego w repozytorium, odczytuj schematy z jego istniejącego `references/`. Stara ścieżka do nieobecnego `generation_rules/` powodowała błąd ładowania modułu; poprawiono ją przy [nauce cloze](runs/2026-11-03-cloze-study-implementation.md).
 - Sesja ćwiczeń powinna utrwalać listę wybranych znaczeń przed generowaniem. Po niepowodzeniu jednej pozycji pokaż powód i przejdź przez pozostałe z tej samej listy; liczba wygenerowanych ćwiczeń nie wyznacza końca sesji. Dotyczy [nauki cloze](runs/2026-11-03-cloze-study-implementation.md).
 - Każde ćwiczenie leksykalne pokazuje przed odpowiedzią pełne polskie zdanie odpowiadające całemu włoskiemu zdaniu po uzupełnieniu luk. Sama etykieta znaczenia nie daje uczniowi pełnego sensu zdania; błąd rozpoznano po [nieudanej próbie ze wskazówką](runs/2026-11-03-exercise-meaning-cue.md) i poprawiono w [kontrakcie tłumaczenia](runs/2026-11-03-exercise-polish-sentence.md).

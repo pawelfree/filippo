@@ -24,11 +24,14 @@ function exercise(id: string, position: number) {
 
 test('generation call validates a four-slot batch with Polish sentences', async () => {
   const oldFetch = globalThis.fetch;
+  const oldInfo = console.info;
   const oldKey = process.env.OPENAI_API_KEY;
   const id = 'sense-test';
   const batch = { results: [{ lexical_sense_id: id, slots: [1, 2, 3, 4].map((position) => ({ position, exercise: exercise(id, position) })) }] };
   let request: any;
   process.env.OPENAI_API_KEY = 'test-key';
+  const logged: unknown[][] = [];
+  console.info = (...args: unknown[]) => { logged.push(args); };
   globalThis.fetch = (async (_url, options) => {
     request = JSON.parse(String(options?.body));
     return { ok: true, json: async () => ({ output_text: JSON.stringify(batch) }) } as Response;
@@ -40,10 +43,12 @@ test('generation call validates a four-slot batch with Polish sentences', async 
     assert.equal(result.results[0].slots.length, 4);
     assert.match(request.instructions, /sentence_pl/);
     assert.equal(JSON.parse(request.input).lexical_senses[0].id, id);
+    assert.equal(logged[0][0], '[Cloze generation response]');
     delete batch.results[0].slots[0].exercise.sentence_pl;
     await assert.rejects(() => (service as unknown as { generate: (id: string) => Promise<unknown> }).generate(id), { status: 502 });
   } finally {
     globalThis.fetch = oldFetch;
+    console.info = oldInfo;
     if (oldKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = oldKey;
   }
 });
@@ -67,24 +72,39 @@ test('cloze session stores generated exercises, grades each selected sense once 
     for (let position = 1; position <= 4; position += 1) await prisma.clozeExercise.create({ data: { lexicalSenseId: first.id, position, contentJson: JSON.stringify(exercise(first.id, position)) } });
     const service = new ClozeService(prisma as never, {} as never, new FsrsService(prisma as never));
     (service as unknown as { generate: (id: string) => Promise<unknown> }).generate = async (id) => ({ results: [{ lexical_sense_id: id, slots: [1, 2, 3, 4].map((position) => ({ position, exercise: exercise(id, position) })) }] });
+    const interrupted = await prisma.clozeSession.create({ data: { selectedIdsJson: JSON.stringify([first.id, second.id]), status: 'failed' } });
+    const interruptedBefore = await service.session(interrupted.id);
     const created = await service.createSession(2);
     assert.equal(created.status, 'queued');
+    assert.deepEqual(created.generation, { processed: 0, total: 2 });
+    assert.equal((await service.listSessions())[0].status, 'queued');
     await (service as unknown as { runNext: () => Promise<void> }).runNext();
     assert.equal(await prisma.clozeExercise.count(), 8);
     const ready = await service.session(created.id);
+    assert.deepEqual((await service.session(interrupted.id)).generation, interruptedBefore.generation, 'later generated exercises changed interrupted job progress');
     assert.equal(ready.status, 'ready');
     assert.equal(ready.requestedCount, 2);
+    assert.deepEqual(ready.generation, { processed: 2, total: 2 });
+    const history = await service.listSessions();
+    assert.equal(history[0].status, 'ready');
+    assert.deepEqual(history[0].generation, { processed: 2, total: 2 });
+    assert.equal('current' in history[0], false);
     assert.equal('answer_keys' in ready.current!.exercise, false);
     const firstEvent = randomUUID();
     const firstAnswer = { eventId: firstEvent, position: 0, responses: { word: 'tregua' } };
     const correct = await service.answer(created.id, firstAnswer);
-    assert.deepEqual(correct.accepted, { correct: true, rating: Rating.Easy });
+    assert.equal(correct.accepted.correct, true);
+    assert.equal(correct.accepted.rating, Rating.Easy);
+    assert.equal(correct.accepted.sentence, 'La tregua è breve.');
+    assert.equal('answer_keys' in correct.accepted.exercise, false);
     assert.equal(correct.current!.position, 1);
     const retried = await service.answer(created.id, firstAnswer);
     assert.deepEqual(retried.accepted, correct.accepted);
     assert.equal(await prisma.fsrsReview.count(), 1);
     const wrong = await service.answer(created.id, { eventId: randomUUID(), position: 1, responses: { word: 'xyz' } });
-    assert.deepEqual(wrong.accepted, { correct: false, rating: Rating.Again });
+    assert.equal(wrong.accepted.correct, false);
+    assert.equal(wrong.accepted.rating, Rating.Again);
+    assert.equal(wrong.accepted.sentence, 'La tregua è breve.');
     assert.equal(wrong.finished, true);
     assert.equal(wrong.completedCount, 2);
     assert.equal(await prisma.fsrsReview.count(), 2);
@@ -105,6 +125,56 @@ test('cloze session stores generated exercises, grades each selected sense once 
     assert.equal(await prisma.clozeAttempt.count(), 0);
     assert.equal(await prisma.clozeExercise.count(), 9);
   } finally {
+    await prisma?.$disconnect();
+    if (oldUrl === undefined) delete process.env.DATABASE_URL; else process.env.DATABASE_URL = oldUrl;
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('reset during cloze generation cancels the worker without writing exercises or P2025 errors', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'filippo-cloze-reset-'));
+  const oldUrl = process.env.DATABASE_URL;
+  const oldError = console.error;
+  process.env.DATABASE_URL = `file:${join(directory, 'test.db')}`;
+  let prisma: PrismaClient | undefined;
+  try {
+    const migrationsRoot = join(process.cwd(), 'prisma', 'migrations');
+    const migrations = (await readdir(migrationsRoot, { withFileTypes: true })).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+    for (const migration of migrations) {
+      const sql = await readFile(join(migrationsRoot, migration, 'migration.sql'), 'utf8');
+      const applied = spawnSync('sqlite3', [join(directory, 'test.db')], { input: sql, encoding: 'utf8' });
+      assert.equal(applied.status, 0, applied.stderr || applied.stdout);
+    }
+    prisma = new PrismaClient();
+    const sense = await prisma.lexicalSense.create({ data: { lexicalItem: 'tregua', definition: 'pausa', detailsJson: '{}' } });
+    const fsrs = new FsrsService(prisma as never);
+    const service = new ClozeService(prisma as never, {} as never, fsrs);
+    let unblock!: () => void;
+    let started!: () => void;
+    const paused = new Promise<void>((resolve) => { unblock = resolve; });
+    const entered = new Promise<void>((resolve) => { started = resolve; });
+    (service as unknown as { generate: (id: string) => Promise<unknown> }).generate = async (id) => {
+      started();
+      await paused;
+      return { results: [{ lexical_sense_id: id, slots: [1, 2, 3, 4].map((position) => ({ position, exercise: exercise(id, position) })) }] };
+    };
+    const created = await service.createSession(1);
+    assert.equal(created.status, 'queued');
+    const errors: unknown[][] = [];
+    console.error = (...args: unknown[]) => { errors.push(args); };
+    const worker = (service as unknown as { runNext: () => Promise<void> }).runNext();
+    await entered;
+    assert.deepEqual((await service.session(created.id)).generation, { processed: 0, total: 1 });
+    await new StudyService(prisma as never, fsrs).reset();
+    unblock();
+    await worker;
+    const p2025 = errors.some((entry) => entry.some((value) => value instanceof Error && String((value as { code?: string }).code) === 'P2025'));
+    assert.equal(p2025, false, 'worker logged P2025 after session deletion');
+    assert.equal(await prisma.clozeSession.count(), 0);
+    assert.equal(await prisma.clozeExercise.count(), 0);
+    assert.deepEqual(errors, []);
+  } finally {
+    console.error = oldError;
     await prisma?.$disconnect();
     if (oldUrl === undefined) delete process.env.DATABASE_URL; else process.env.DATABASE_URL = oldUrl;
     await rm(directory, { recursive: true, force: true });

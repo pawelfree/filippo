@@ -46,8 +46,20 @@
             <div id="cloze-prompt" class="cloze-prompt"></div>
             <button id="cloze-submit" type="submit">Gotowe</button>
           </form>
+          <div id="cloze-feedback" class="cloze-feedback" role="status" aria-live="polite" hidden>
+            <p class="cloze-label">Prawidłowe zdanie</p>
+            <p id="cloze-solution" class="cloze-solution"></p>
+            <p id="cloze-rating" class="cloze-rating"></p>
+            <button id="cloze-next" type="button">Następne ćwiczenie</button>
+          </div>
         </article>
         <div class="actions"><button id="cloze-new" class="secondary" type="button">Nowa sesja</button><button id="cloze-retry" class="secondary" type="button" hidden>Ponów zapis odpowiedzi</button></div>
+      </section>
+      <section class="lexical-panel" aria-labelledby="cloze-history-heading">
+        <div class="section-heading"><span>Ostatnie 20 zleceń</span><h2 id="cloze-history-heading">Stan generowania ćwiczeń</h2></div>
+        <div id="cloze-job-tabs" class="job-tabs" role="tablist"></div>
+        <div id="cloze-jobs" class="cloze-jobs"></div>
+        <div class="actions"><button id="cloze-history-refresh" type="button">Odśwież stan</button></div>
       </section>
     </main>
   </body>

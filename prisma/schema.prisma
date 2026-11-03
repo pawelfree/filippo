@@ -42,6 +42,7 @@ model ClozeSession {
   failuresJson    String         @default("{}")
   status          String         @default("queued")
   cursor          Int            @default(0)
+  generationProcessed Int?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   attempts        ClozeAttempt[]

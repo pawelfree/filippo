@@ -7,6 +7,13 @@
 .cloze-prompt{margin:0 0 24px;font-size:20px;line-height:2;color:#283a2d;white-space:pre-wrap}
 .cloze-gap{width:9ch;min-width:6ch;padding:5px 7px;border:1px solid #a8c5ab;border-radius:6px;background:#fff;color:#244132;text-align:center}
 .cloze-gap:focus{outline:3px solid #cce7ce;outline-offset:1px}
+.cloze-feedback{padding-top:18px;border-top:1px solid #dce9dc}
+.cloze-solution{margin:0 0 12px;font-size:20px;line-height:1.6;color:#244132}
+.cloze-rating{margin:0 0 18px;font-weight:700;color:#244132}
 .cloze-failures{padding:14px 18px;margin:15px 0;border:1px solid #e9dfc1;border-radius:9px;background:#fffaf0;color:#65562f;font-size:13px}
 .cloze-failures ul{margin:8px 0 0;padding-left:18px}
+.cloze-jobs{overflow-x:auto}
+.cloze-jobs .job-table{min-width:560px}
+.cloze-job-note{max-width:320px;overflow-wrap:anywhere;color:#675f55;font-size:12px}
+#cloze-history-refresh:hover,#cloze-history-refresh:focus-visible{background:#365c73}
 @media(max-width:640px){.cloze-card{padding:16px}.cloze-prompt{font-size:17px}.cloze-polish{font-size:16px}}

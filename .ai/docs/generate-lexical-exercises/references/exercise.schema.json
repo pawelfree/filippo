@@ -9,6 +9,7 @@
     "task_type",
     "lexical_sense_id",
     "prompt",
+    "sentence_pl",
     "hints",
     "intent",
     "difficulty",
@@ -50,10 +51,16 @@
       },
       "description": "Ordered text and gap parts forming the complete sentence or short dialogue. Gap parts may be adjacent or separated by text. Every declared gap_id must occur exactly once."
     },
+    "sentence_pl": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S",
+      "description": "Learner-visible complete Polish sentence or short dialogue corresponding to the entire Italian prompt after all gaps are filled. It must naturally convey the intended lexical meaning and preserve the Italian content and references; it is not a dictionary gloss or a hint label."
+    },
     "hints": {
       "type": "array",
       "items": { "type": "string", "minLength": 1, "pattern": "\\S" },
-      "description": "All hints visible to the learner before answering, in display order. Use an empty array when there are none. A hint may identify the lexical base or constrain an incidental decision but must not reveal the target form."
+      "description": "Optional grammar or lexical-base hints visible to the learner before answering, in display order. The full Polish equivalent is in sentence_pl. Use an empty array when there are no additional hints. A hint may identify the lexical base or constrain an incidental decision but must not reveal the target form."
     },
     "intent": {
       "enum": ["practice", "light_diagnosis", "review"],

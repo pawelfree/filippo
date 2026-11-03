@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Filippo · Nauka cloze</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/lexical-senses.css" />
+    <link rel="stylesheet" href="/cloze.css" />
+    <script src="/assets/cloze.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">F</span><span>filippo <small>/ nauka cloze</small></span></div>
+      <nav class="page-nav" aria-label="Nawigacja główna">
+        <a href="/">Taksonomia</a>
+        <a href="/profile.html">Profil kompetencyjny</a>
+        <details class="lexical-menu"><summary>Słownictwo</summary><div class="lexical-menu-items"><a href="/lexical-senses.html">Dodaj znaczenia</a><a href="/generation-proposals.html">Propozycje do przetworzenia</a><a href="/stored-lexical-senses.html">Zapisane znaczenia</a></div></details>
+        <a href="/study.html">Nauka</a>
+        <a class="current" href="/cloze.html" aria-current="page">Nauka cloze</a>
+        <details class="lexical-menu statistics-menu"><summary>Statystyki</summary><div class="lexical-menu-items"><a href="/study-statistics.html">Statystyki nauki</a><a href="/study-simulation.html">Symulacja powtórek</a></div></details>
+      </nav>
+    </header>
+    <main class="shell lexical-shell">
+      <section class="intro"><div><p class="eyebrow">Włoskie słownictwo</p><h1>Nauka <em>cloze</em></h1><p>Uzupełnij luki na podstawie polskiego zdania. Każde znaczenie pojawi się raz w tej sesji.</p></div></section>
+      <div id="cloze-status" class="status" role="status" aria-live="polite"></div>
+      <div id="cloze-error" class="error" role="alert" hidden></div>
+      <section id="cloze-start" class="lexical-panel">
+        <div class="section-heading"><span>Nowa sesja</span><h2>Ile znaczeń chcesz przećwiczyć?</h2></div>
+        <form id="cloze-start-form" class="cloze-start-form">
+          <label for="cloze-count">Liczba słów lub wyrażeń</label>
+          <input id="cloze-count" type="number" min="1" max="20" value="5" required />
+          <button type="submit">Rozpocznij</button>
+        </form>
+        <p class="hint">Brakujące ćwiczenia zostaną wygenerowane i zapisane. W tej sesji zobaczysz pierwsze ćwiczenie każdego wybranego znaczenia.</p>
+      </section>
+      <section id="cloze-session" class="lexical-panel" hidden>
+        <div class="section-heading"><span>Sesja cloze</span><h2 id="cloze-progress">Przygotowywanie…</h2></div>
+        <p id="cloze-generation" class="hint"></p>
+        <div id="cloze-failures" class="cloze-failures" hidden></div>
+        <article id="cloze-card" class="cloze-card" hidden>
+          <p class="cloze-label">Zdanie po polsku</p>
+          <p id="cloze-polish" class="cloze-polish"></p>
+          <p class="cloze-label">Uzupełnij zdanie po włosku</p>
+          <form id="cloze-answer-form">
+            <div id="cloze-prompt" class="cloze-prompt"></div>
+            <button id="cloze-submit" type="submit">Gotowe</button>
+          </form>
+        </article>
+        <div class="actions"><button id="cloze-new" class="secondary" type="button">Nowa sesja</button><button id="cloze-retry" class="secondary" type="button" hidden>Ponów zapis odpowiedzi</button></div>
+      </section>
+    </main>
+  </body>
+</html>

@@ -19,8 +19,51 @@ model LexicalSense {
   fsrsStates  FsrsState[]
   fsrsReviews FsrsReview[]
   studyAttempts StudyAttempt[]
+  clozeExercises ClozeExercise[]
 
   @@index([lexicalItem])
+}
+
+model ClozeExercise {
+  id             String       @id @default(cuid())
+  lexicalSenseId String
+  position       Int
+  contentJson    String
+  createdAt      DateTime     @default(now())
+  lexicalSense   LexicalSense @relation(fields: [lexicalSenseId], references: [id], onDelete: Restrict)
+  attempts       ClozeAttempt[]
+
+  @@unique([lexicalSenseId, position])
+}
+
+model ClozeSession {
+  id              String         @id @default(cuid())
+  selectedIdsJson String
+  failuresJson    String         @default("{}")
+  status          String         @default("queued")
+  cursor          Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  attempts        ClozeAttempt[]
+
+  @@index([status, createdAt])
+}
+
+model ClozeAttempt {
+  eventId        String        @id
+  sessionId      String
+  lexicalSenseId String
+  exerciseId     String
+  position       Int
+  responseJson   String
+  correct        Boolean
+  rating         Int
+  reviewedAt     DateTime
+  session        ClozeSession  @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  exercise       ClozeExercise @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+
+  @@unique([sessionId, position])
+  @@index([lexicalSenseId, reviewedAt])
 }
 
 model GeneratedTask {

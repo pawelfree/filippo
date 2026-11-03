@@ -23,7 +23,7 @@ export interface ExerciseGenerationInput {
   lexical_senses: ExerciseSenseInput[];
 }
 
-const schema = JSON.parse(readFileSync(join(process.cwd(), '.ai/docs/generation_rules/lexical_sense_input.schema.json'), 'utf8')) as object;
+const schema = JSON.parse(readFileSync(join(process.cwd(), '.ai/docs/generate-lexical-exercises/references/lexical_sense_input.schema.json'), 'utf8')) as object;
 const validateSenseInput = new Ajv2020().compile<ExerciseSenseInput>(schema);
 const maxSenses = 100;
 

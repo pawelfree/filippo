@@ -1,0 +1,12 @@
+.cloze-start-form{display:flex;align-items:end;flex-wrap:wrap;gap:12px;margin:20px 0}
+.cloze-start-form label{width:100%;font-size:13px;font-weight:700;color:#486551}
+.cloze-start-form input{width:120px;padding:10px 12px;border:1px solid #cbd9cb;border-radius:8px;background:#fff}
+.cloze-card{margin-top:22px;padding:25px;border:1px solid #dce9dc;border-radius:14px;background:#fbfdf9}
+.cloze-label{margin:0 0 8px;color:#718c73;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.cloze-polish{margin:0 0 26px;font-size:18px;line-height:1.6;color:#244132}
+.cloze-prompt{margin:0 0 24px;font-size:20px;line-height:2;color:#283a2d;white-space:pre-wrap}
+.cloze-gap{width:9ch;min-width:6ch;padding:5px 7px;border:1px solid #a8c5ab;border-radius:6px;background:#fff;color:#244132;text-align:center}
+.cloze-gap:focus{outline:3px solid #cce7ce;outline-offset:1px}
+.cloze-failures{padding:14px 18px;margin:15px 0;border:1px solid #e9dfc1;border-radius:9px;background:#fffaf0;color:#65562f;font-size:13px}
+.cloze-failures ul{margin:8px 0 0;padding-left:18px}
+@media(max-width:640px){.cloze-card{padding:16px}.cloze-prompt{font-size:17px}.cloze-polish{font-size:16px}}

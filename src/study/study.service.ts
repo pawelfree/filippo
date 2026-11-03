@@ -93,6 +93,8 @@ export class StudyService {
     await this.prisma.$transaction(async (tx) => {
       const config = await tx.fsrsConfigRevision.findFirst({ orderBy: { revision: 'desc' } });
       if (!config) throw new ConflictException('Brak konfiguracji FSRS.');
+      await tx.clozeAttempt.deleteMany();
+      await tx.clozeSession.deleteMany();
       await tx.studyAttempt.deleteMany();
       await tx.fsrsReview.deleteMany();
       await tx.fsrsState.deleteMany();

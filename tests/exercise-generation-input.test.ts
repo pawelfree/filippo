@@ -29,7 +29,7 @@ test('prepares schema-valid exercise input in requested order without provenance
   assert.equal('evidence' in result.lexical_senses[0], false);
   assert.equal('glosses_pl' in result.lexical_senses[0], false);
 
-  const schema = JSON.parse(readFileSync(join(process.cwd(), '.ai/docs/generation_rules/lexical_sense_input.schema.json'), 'utf8'));
+  const schema = JSON.parse(readFileSync(join(process.cwd(), '.ai/docs/generate-lexical-exercises/references/lexical_sense_input.schema.json'), 'utf8'));
   const validate = new Ajv2020().compile(schema);
   for (const sense of result.lexical_senses) assert.equal(validate(sense), true, JSON.stringify(validate.errors));
 });

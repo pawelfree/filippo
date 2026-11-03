@@ -17,13 +17,15 @@ import { StudyStatisticsController } from './study/study-statistics.controller';
 import { StudyStatisticsService } from './study/study-statistics.service';
 import { StudySimulationController } from './study/study-simulation.controller';
 import { StudySimulationService } from './study/study-simulation.service';
+import { ClozeController } from './cloze/cloze.controller';
+import { ClozeService } from './cloze/cloze.service';
 
 @Module({
   imports: [DatabaseModule, ServeStaticModule.forRoot(
     { rootPath: join(process.cwd(), 'dist', 'browser'), serveRoot: '/assets' },
     { rootPath: join(process.cwd(), 'public') },
   )],
-  controllers: [TaxonomyController, ProfileController, LexicalSensesController, ExerciseGenerationInputController, StudyController, StudyStatisticsController, StudySimulationController],
-  providers: [TaxonomyService, ProfileService, LexicalSensesService, ExerciseGenerationInputService, FsrsService, StudyService, StudyStatisticsService, StudySimulationService],
+  controllers: [TaxonomyController, ProfileController, LexicalSensesController, ExerciseGenerationInputController, StudyController, StudyStatisticsController, StudySimulationController, ClozeController],
+  providers: [TaxonomyService, ProfileService, LexicalSensesService, ExerciseGenerationInputService, FsrsService, StudyService, StudyStatisticsService, StudySimulationService, ClozeService],
 })
 export class AppModule {}

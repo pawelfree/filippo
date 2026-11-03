@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LexicalSense input for exercise generation",
+  "description": "Task-specific projection of a persisted Italian LexicalSense. It carries the meaning and usage constraints needed to generate exercises, without source provenance or storage metadata.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "lexical_item_it", "part_of_speech", "definition_it", "definition_pl", "usage"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "lexical_item_it": { "$ref": "#/$defs/text" },
+    "part_of_speech": {
+      "enum": ["noun", "verb", "adjective", "adverb", "pronoun", "determiner", "preposition", "conjunction", "interjection", "expression", "other"]
+    },
+    "definition_it": { "$ref": "#/$defs/text" },
+    "definition_pl": { "$ref": "#/$defs/text" },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["register", "patterns_it", "collocations_it", "constraints_pl"],
+      "properties": {
+        "register": { "enum": ["neutral", "formal", "informal", "colloquial", "literary", "technical", "regional", "unknown"] },
+        "patterns_it": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/text" } },
+        "collocations_it": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/text" } },
+        "constraints_pl": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/text" } }
+      }
+    },
+    "examples_it": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/text" },
+      "description": "Optional Italian usage examples from the stored sense. They illustrate the meaning; they are not exercise templates or source evidence."
+    }
+  },
+  "$defs": {
+    "text": { "type": "string", "minLength": 1, "pattern": "\\S" }
+  }
+}

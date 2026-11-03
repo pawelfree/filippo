@@ -2,6 +2,10 @@
 
 Read this index before working on related areas. Add concise, evidence-based lessons here after a bug fix or other reusable finding. Put longer explanations in `lessons/YYYY-MM-DD-slug.md` and link them from the entry.
 
+- Gdy liczba generowanych ćwiczeń na znaczenie się zmienia, zaktualizuj zarówno reguły przydziału i kontroli całej serii, jak i pola schematu pojedynczego ćwiczenia. Schemat pojedynczego rekordu nie sprawdza liczności zestawu; tę kontrolę musi wykonać generator. Dotyczy [kontraktu generowania](runs/2026-11-03-exercise-generation-contract.md).
+- Przy generowaniu AI licz próby osobno dla każdego miejsca na wynik; ponowny wybór celu i końcowa kontrola nie mogą odnawiać limitu. Po wyczerpaniu prób lub kandydatów zwróć poprawne wyniki i jawne niepowodzenia, aby seria kończyła się przewidywalnie. Dotyczy [ograniczenia prób](runs/2026-11-03-bounded-exercise-generation.md).
+- Gdy wynik jednego skilla zasila inny, przekazuj projekcję danych potrzebnych drugiemu zadaniu, zachowując identyfikator zapisanego rekordu. Pełny `LexicalSense` zawiera informacje źródłowe i metadane, których generator ćwiczeń nie używa; zobacz [kontrakt wejścia](runs/2026-11-03-lexical-sense-generation-input.md).
+
 - Symulację przyszłych powtórek FSRS licz na kopiach pełnych kart z tą samą aktywną konfiguracją co rzeczywiste oceny. Ogranicz liczbę zdarzeń i czas obliczenia oraz pokazuj rozkład ocen i założenia zastępcze; inaczej wynik może wyglądać jak zapisany harmonogram lub utracić rozdział między formalną oceną a lokalnym utrwaleniem. Sprawdzono w [teście symulacji](../tests/study-simulation.test.ts).
 
 - Statystyki FSRS odczytuj z migawki kart i ocen: pierwsza formalna ocena znaczenia w dniu Warszawy wyznacza skuteczność, a lokalne utrwalenia licz osobno. Prawdopodobieństwo przypomnienia licz z pełnej karty i przypisanej jej rewizji konfiguracji; błąd tej części nie powinien ukrywać historii. Sprawdzono w [teście statystyk](../tests/study-statistics.test.ts).

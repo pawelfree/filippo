@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Open cloze exercise",
-  "description": "One lexical exercise for one LexicalSense. A response may fill multiple word-level gaps and provide multiple grammar observations; the FSRS unit remains the exercise's LexicalSense.",
+  "description": "One of four lexical exercises for one stored LexicalSense. A response may fill multiple word-level gaps and provide multiple grammar observations; the FSRS unit remains the LexicalSense shared by all four exercises.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -9,6 +9,9 @@
     "task_type",
     "lexical_sense_id",
     "prompt",
+    "hints",
+    "intent",
+    "difficulty",
     "gaps",
     "answer_keys",
     "success_checks_by_answer_key",
@@ -18,7 +21,7 @@
     "exercise_id": {
       "type": "string",
       "minLength": 1,
-      "description": "Stable identity of this exercise content; separate from a presentation identity."
+      "description": "Stable identity of this exercise content, unique across the generated batch and separate from a presentation identity."
     },
     "task_type": {
       "const": "fill_blank",
@@ -27,7 +30,7 @@
     "lexical_sense_id": {
       "type": "string",
       "minLength": 1,
-      "description": "The single LexicalSense practiced by the whole exercise and the associated FSRS unit. Do not create an FSRS result per gap."
+      "description": "ID of the persisted LexicalSense practiced by this exercise. All four exercises in the set share this ID; an FSRS result belongs to the LexicalSense, not to each exercise or gap."
     },
     "prompt": {
       "type": "array",
@@ -46,6 +49,19 @@
         "$ref": "#/$defs/prompt_part"
       },
       "description": "Ordered text and gap parts forming the complete sentence or short dialogue. Gap parts may be adjacent or separated by text. Every declared gap_id must occur exactly once."
+    },
+    "hints": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "pattern": "\\S" },
+      "description": "All hints visible to the learner before answering, in display order. Use an empty array when there are none. A hint may identify the lexical base or constrain an incidental decision but must not reveal the target form."
+    },
+    "intent": {
+      "enum": ["practice", "light_diagnosis", "review"],
+      "description": "Purpose of this exercise. Interpret grammar observations in light of the task purpose and any hints."
+    },
+    "difficulty": {
+      "enum": ["easy", "standard", "challenge"],
+      "description": "Relative difficulty for this learner at generation time, based on the supplied profile, task context and hints; not the taxonomy variant's CEFR reference level."
     },
     "gaps": {
       "type": "array",

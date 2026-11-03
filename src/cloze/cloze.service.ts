@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { BadGatewayException, BadRequestException, ConflictException, Inject, Injectable, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, ConflictException, HttpException, HttpStatus, Inject, Injectable, NotFoundException, OnModuleDestroy, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import Ajv2020 from 'ajv/dist/2020';
 import { Rating } from 'ts-fsrs';
@@ -9,6 +9,7 @@ import { PrismaService } from '../database/prisma.service';
 import { ExerciseGenerationInputService } from '../exercise-generation-input/exercise-generation-input.service';
 import { FsrsService } from '../fsrs/fsrs.service';
 import { StudyService, dayKey } from '../study/study.service';
+import { projectTaxonomyForGeneration } from './taxonomy-generation-input';
 
 type Part = { text: string } | { gap_id: string };
 type Exercise = {
@@ -35,6 +36,23 @@ const model = process.env.OPENAI_EXERCISE_MODEL || process.env.OPENAI_MODEL || '
 const maxCount = 20;
 
 function parseJson<T>(value: string, fallback: T): T { try { return JSON.parse(value) as T; } catch { return fallback; } }
+function openAiGenerationFailure(status: number, body: unknown): Error {
+  const error = typeof body === 'object' && body !== null && 'error' in body ? body.error : undefined;
+  const code = typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string' ? error.code : undefined;
+  if (status === 401) return new UnauthorizedException('OpenAI odrzuciło klucz API. Sprawdź aktywną wartość OPENAI_API_KEY na serwerze.');
+  if (status === 429) {
+    const messages: Record<string, string> = {
+      credit_balance_exhausted: 'Wyczerpano środki API OpenAI. Dodaj kredyty w ustawieniach rozliczeń.',
+      insufficient_quota: 'Wyczerpano środki lub limit użycia API OpenAI. Sprawdź rozliczenia i limity projektu.',
+      organization_spend_limit_exceeded: 'Osiągnięto limit wydatków organizacji OpenAI.',
+      project_spend_limit_exceeded: 'Osiągnięto limit wydatków projektu OpenAI.',
+      organization_usage_limit_exceeded: 'Osiągnięto miesięczny limit użycia organizacji OpenAI.',
+      rate_limit_exceeded: 'OpenAI chwilowo ogranicza liczbę żądań. Spróbuj ponownie później.',
+    };
+    return new HttpException(messages[code || ''] || 'OpenAI odrzuciło żądanie z powodu limitu. Sprawdź rozliczenia i limity projektu.', HttpStatus.TOO_MANY_REQUESTS);
+  }
+  return new BadGatewayException(`OpenAI zwróciło błąd HTTP ${status}.`);
+}
 function publicExercise(exercise: Exercise) {
   const { answer_keys: _answers, success_checks_by_answer_key: _checks, ...visible } = exercise;
   return visible;
@@ -78,31 +96,73 @@ export class ClozeService implements OnModuleInit, OnModuleDestroy {
   }
   onModuleDestroy(): void { if (this.timer) clearInterval(this.timer); }
 
-  async createSession(countInput: unknown) {
-    const count = Number(countInput);
+  async createSession(countInput: unknown, modeInput: unknown = 'all') {
+    if (!['all', 'review', 'new'].includes(String(modeInput))) throw new BadRequestException('Niepoprawny tryb nauki cloze.');
+    const mode = modeInput as 'all' | 'review' | 'new';
+    const count = mode === 'review' ? maxCount : Number(countInput);
     if (!Number.isInteger(count) || count < 1 || count > maxCount) throw new BadRequestException(`Podaj liczbę znaczeń od 1 do ${maxCount}.`);
-    const plan = await this.study.selectForCloze(count);
-    if (!plan.length) throw new BadRequestException('Na dziś nie ma znaczeń do nauki według FSRS.');
+    const plan = await this.study.selectForCloze(count, mode);
+    if (!plan.length) throw new BadRequestException(mode === 'review' ? 'Nie ma teraz znaczeń do powtórki.' : mode === 'new' ? 'Nie ma teraz nowych znaczeń.' : 'Na dziś nie ma znaczeń do nauki według FSRS.');
     const selected = plan.map((item) => item.lexicalSenseId);
     const kinds = Object.fromEntries(plan.map((item) => [item.lexicalSenseId, item.kind]));
-    const [existing, attempts] = await Promise.all([
+    const selectionAt = new Date();
+    const sessionDay = dayKey(selectionAt);
+    const [existing, usage, previousAttempts, todayAttempts] = await Promise.all([
       this.prisma.clozeExercise.findMany({ where: { lexicalSenseId: { in: selected } }, orderBy: [{ batch: 'asc' }, { position: 'asc' }] }),
-      this.prisma.clozeAttempt.findMany({ where: { lexicalSenseId: { in: selected } }, select: { exerciseId: true } }),
+      this.prisma.clozeExerciseUsage.findMany({ where: { exercise: { lexicalSenseId: { in: selected } } }, select: { exerciseId: true } }),
+      this.prisma.clozeAttempt.findMany({ where: { lexicalSenseId: { in: selected }, reviewedAt: { lte: selectionAt } }, select: { eventId: true, lexicalSenseId: true, exerciseId: true, reviewedAt: true }, orderBy: [{ reviewedAt: 'desc' }, { eventId: 'desc' }] }),
+      this.prisma.studyAttempt.findMany({ where: { lexicalSenseId: { in: selected }, dayKey: sessionDay, reviewedAt: { lte: selectionAt } }, select: { eventId: true, lexicalSenseId: true, kind: true, rating: true }, orderBy: [{ reviewedAt: 'desc' }, { eventId: 'desc' }] }),
     ]);
-    const used = new Set(attempts.map((item) => item.exerciseId));
+    const used = new Set(usage.map((item) => item.exerciseId));
     const assignments: Record<string, string> = {};
-    for (const row of existing) {
-      if (!assignments[row.lexicalSenseId] && !used.has(row.id) && validContent(parseJson<Exercise>(row.contentJson, {} as Exercise), row.lexicalSenseId, row.position)) assignments[row.lexicalSenseId] = row.id;
+    const validRows = new Map(existing.filter((row) => validContent(parseJson<Exercise>(row.contentJson, {} as Exercise), row.lexicalSenseId, row.position)).map((row) => [row.id, row]));
+    const lastAttempts = new Map<string, (typeof previousAttempts)[number]>();
+    for (const attempt of previousAttempts) {
+      if (!lastAttempts.has(attempt.lexicalSenseId)) lastAttempts.set(attempt.lexicalSenseId, attempt);
     }
-    const ready = selected.every((id) => !!assignments[id]);
-    const session = await this.prisma.clozeSession.create({ data: { selectedIdsJson: JSON.stringify(selected), selectedKindsJson: JSON.stringify(kinds), exerciseIdsJson: JSON.stringify(assignments), status: ready ? 'ready' : 'queued', generationProcessed: ready ? selected.length : 0 } });
+    const lastTodayAttempt = new Map<string, (typeof todayAttempts)[number]>();
+    for (const attempt of todayAttempts) {
+      if (!lastTodayAttempt.has(attempt.lexicalSenseId)) lastTodayAttempt.set(attempt.lexicalSenseId, attempt);
+    }
+    const blockedLatest = new Set<string>();
+    for (const id of selected) {
+      const last = lastAttempts.get(id);
+      if (!last || validRows.get(last.exerciseId)?.lexicalSenseId !== id) continue;
+      const latestStudy = lastTodayAttempt.get(id);
+      const failedHere = kinds[id] === 'reinforcement' && latestStudy?.eventId === last.eventId && latestStudy.kind !== 'reinforcement' && latestStudy.rating === Rating.Again;
+      if ((failedHere || kinds[id] === 'due') && dayKey(last.reviewedAt) === sessionDay) assignments[id] = last.exerciseId;
+      else if (kinds[id] === 'due') blockedLatest.add(last.exerciseId);
+    }
+    for (const row of existing) {
+      if (!assignments[row.lexicalSenseId] && !used.has(row.id) && !blockedLatest.has(row.id) && validRows.has(row.id)) assignments[row.lexicalSenseId] = row.id;
+    }
+    const missingCount = selected.filter((id) => !assignments[id]).length;
+    const ready = missingCount === 0;
+    const session = await this.prisma.clozeSession.create({ data: { selectedIdsJson: JSON.stringify(selected), selectedKindsJson: JSON.stringify(kinds), exerciseIdsJson: JSON.stringify(assignments), status: ready ? 'ready' : 'queued', generationProcessed: 0, generationTotal: missingCount, generationRequested: !ready, createdAt: selectionAt } });
     return this.session(session.id);
   }
 
-  async overview() { return this.study.overview(); }
+  async resetExerciseUsage() {
+    const cleared = await this.prisma.clozeExerciseUsage.deleteMany();
+    return { cleared: cleared.count };
+  }
+
+  async retryMissing(id: string) {
+    const session = await this.prisma.clozeSession.findUnique({ where: { id } });
+    if (!session) throw new NotFoundException('Nie znaleziono sesji cloze.');
+    if (!['ready', 'failed'].includes(session.status)) throw new ConflictException('Poczekaj na zakończenie generowania.');
+    if (await this.prisma.clozeAttempt.count({ where: { sessionId: id } })) throw new ConflictException('Po rozpoczęciu nauki dokończ sesję, a następnie rozpocznij nową dla brakujących znaczeń.');
+    const selected = [...new Set(parseJson<string[]>(session.selectedIdsJson, []))];
+    const assignments = parseJson<Record<string, string>>(session.exerciseIdsJson, {});
+    const missing = selected.filter((senseId) => !assignments[senseId]);
+    if (!missing.length) throw new BadRequestException('W tej sesji nie ma brakujących ćwiczeń.');
+    const changed = await this.prisma.clozeSession.updateMany({ where: { id, status: session.status }, data: { status: 'queued', failuresJson: '{}', generationProcessed: 0, generationTotal: missing.length, generationRequested: true } });
+    if (!changed.count) throw new ConflictException('Stan generowania zmienił się. Odśwież stronę.');
+    return this.session(id);
+  }
 
   async listSessions() {
-    const rows = await this.prisma.clozeSession.findMany({ orderBy: { createdAt: 'desc' }, take: 20, select: { id: true, createdAt: true } });
+    const rows = await this.prisma.clozeSession.findMany({ where: { generationRequested: true }, orderBy: { createdAt: 'desc' }, take: 20, select: { id: true, createdAt: true } });
     const summaries = await Promise.all(rows.map(async (row) => {
       try {
         const { current: _current, finished: _finished, ...summary } = await this.session(row.id);
@@ -123,9 +183,20 @@ export class ClozeService implements OnModuleInit, OnModuleDestroy {
     const kinds = parseJson<Record<string, string>>(session.selectedKindsJson, {});
     const assignments = parseJson<Record<string, string>>(session.exerciseIdsJson, {});
     const failures = parseJson<Record<string, string>>(session.failuresJson, {});
-    const attempts = await this.prisma.clozeAttempt.findMany({ where: { sessionId: id }, select: { lexicalSenseId: true } });
+    const failureIds = [...new Set(Object.keys(failures).map((key) => key.split(':')[0]))];
+    const [attempts, failedSenses] = await Promise.all([
+      this.prisma.clozeAttempt.findMany({ where: { sessionId: id }, select: { lexicalSenseId: true } }),
+      failureIds.length ? this.prisma.lexicalSense.findMany({ where: { id: { in: failureIds } }, select: { id: true, lexicalItem: true, definition: true, detailsJson: true } }) : Promise.resolve([]),
+    ]);
+    const failureLabels = Object.fromEntries(failedSenses.map((sense) => {
+      const details = parseJson<Record<string, unknown>>(sense.detailsJson || '', {});
+      const glosses = details.glosses_pl;
+      const gloss = Array.isArray(glosses) && typeof glosses[0] === 'string' ? glosses[0] : typeof details.definition_pl === 'string' ? details.definition_pl : sense.definition;
+      return [sense.id, `${sense.lexicalItem} — ${gloss}`];
+    }));
     const completedCount = new Set(attempts.map((item) => item.lexicalSenseId)).size;
-    const common = { id: session.id, status: session.status, requestedCount: distinct.length, completedCount, generation: { processed: session.generationProcessed, total: distinct.length }, failures };
+    const missingCount = distinct.filter((senseId) => !assignments[senseId]).length;
+    const common = { id: session.id, status: session.status, requestedCount: distinct.length, completedCount, missingCount, generation: { processed: session.generationProcessed, total: session.generationTotal }, failures, failureLabels };
     if (session.status !== 'ready') return { ...common, current: null, finished: session.status === 'failed' };
     const rows = await this.prisma.clozeExercise.findMany({ where: { lexicalSenseId: { in: distinct } }, orderBy: [{ batch: 'asc' }, { position: 'asc' }] });
     const byId = new Map(rows.filter((row) => validContent(parseJson<Exercise>(row.contentJson, {} as Exercise), row.lexicalSenseId, row.position)).map((row) => [row.id, row]));
@@ -189,6 +260,7 @@ export class ClozeService implements OnModuleInit, OnModuleDestroy {
           if (reviewId) await this.fsrs.applyReviewInTransaction(tx, { reviewEventId: reviewId, lexicalSenseId: ids[current], rating, reviewedAt });
           await tx.studyAttempt.create({ data: { eventId, lexicalSenseId: ids[current], presentationToken: `cloze:${id}:${current}`, kind, rating, reviewedAt, dayKey: dayKey(reviewedAt), fsrsReviewEventId: reviewId } });
           await tx.clozeAttempt.create({ data: { eventId, sessionId: id, lexicalSenseId: ids[current], exerciseId: row.id, position: current, responseJson: JSON.stringify(values), correct, rating, reviewedAt } });
+          await tx.clozeExerciseUsage.upsert({ where: { exerciseId: row.id }, create: { exerciseId: row.id, usedAt: reviewedAt }, update: {} });
           if (rating === Rating.Again && formal) {
             if (kind === 'due') {
               let insert = current + 1;
@@ -222,37 +294,48 @@ export class ClozeService implements OnModuleInit, OnModuleDestroy {
       runningId = queued.id;
       const ids = [...new Set(parseJson<string[]>(queued.selectedIdsJson, []))];
       const assignments = parseJson<Record<string, string>>(queued.exerciseIdsJson, {});
+      const kinds = parseJson<Record<string, string>>(queued.selectedKindsJson, {});
       const failures: Record<string, string> = {};
+      const missing: Array<{ id: string; batch: number }> = [];
       for (const id of ids) {
+        if (assignments[id]) continue;
         const present = await this.prisma.clozeExercise.findMany({ where: { lexicalSenseId: id }, orderBy: [{ batch: 'asc' }, { position: 'asc' }] });
-        const used = await this.prisma.clozeAttempt.findMany({ where: { lexicalSenseId: id }, select: { exerciseId: true } });
+        const used = await this.prisma.clozeExerciseUsage.findMany({ where: { exercise: { lexicalSenseId: id } }, select: { exerciseId: true } });
         const usedIds = new Set(used.map((item) => item.exerciseId));
-        const available = present.find((row) => !usedIds.has(row.id) && validContent(parseJson<Exercise>(row.contentJson, {} as Exercise), id, row.position));
-        if (!assignments[id] && available) assignments[id] = available.id;
-        const batch = Math.max(0, ...present.map((row) => row.batch)) + 1;
+        const last = kinds[id] === 'due' ? await this.prisma.clozeAttempt.findFirst({ where: { lexicalSenseId: id, reviewedAt: { lte: queued.createdAt } }, select: { exerciseId: true, reviewedAt: true }, orderBy: [{ reviewedAt: 'desc' }, { eventId: 'desc' }] }) : null;
+        const blockedLatest = last && dayKey(last.reviewedAt) !== dayKey(queued.createdAt) ? last.exerciseId : null;
+        const available = present.find((row) => !usedIds.has(row.id) && row.id !== blockedLatest && validContent(parseJson<Exercise>(row.contentJson, {} as Exercise), id, row.position));
+        if (available) assignments[id] = available.id;
+        else missing.push({ id, batch: Math.max(0, ...present.map((row) => row.batch)) + 1 });
+      }
+      const prepared = await this.prisma.clozeSession.updateMany({ where: { id: queued.id, status: 'running' }, data: { exerciseIdsJson: JSON.stringify(assignments), generationTotal: missing.length, generationProcessed: 0 } });
+      if (!prepared.count) return;
+      for (let offset = 0; offset < missing.length; offset += 5) {
+        const group = missing.slice(offset, offset + 5);
         let generated: GenerationResult | undefined;
-        if (!assignments[id]) {
-          try {
-            generated = await this.generate(id);
-          } catch (error) {
-            const message = error instanceof Error ? error.message : 'Nie udało się wygenerować ćwiczeń.';
-            for (const position of [1, 2, 3, 4]) failures[`${id}:${batch}:${position}`] = message;
-          }
+        try {
+          generated = await this.generate(group.map((item) => item.id));
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Nie udało się wygenerować ćwiczeń.';
+          for (const { id, batch } of group) for (const position of [1, 2, 3, 4]) failures[`${id}:${batch}:${position}`] = message;
         }
         const active = await this.prisma.$transaction(async (tx) => {
           if (!await tx.clozeSession.findFirst({ where: { id: queued.id, status: 'running' }, select: { id: true } })) return false;
-          for (const slot of generated?.results[0].slots ?? []) {
-            if (slot.exercise) {
-              const row = await tx.clozeExercise.create({ data: { lexicalSenseId: id, batch, position: slot.position, contentJson: JSON.stringify(slot.exercise) } });
-              if (!assignments[id]) assignments[id] = row.id;
-            } else failures[`${id}:${batch}:${slot.position}`] = slot.failure?.reason || 'Nie udało się wygenerować ćwiczenia.';
+          const results = new Map(generated?.results.map((result) => [result.lexical_sense_id, result]) ?? []);
+          for (const { id, batch } of group) {
+            for (const slot of results.get(id)?.slots ?? []) {
+              if (slot.exercise) {
+                const row = await tx.clozeExercise.create({ data: { lexicalSenseId: id, batch, position: slot.position, contentJson: JSON.stringify(slot.exercise) } });
+                if (!assignments[id]) assignments[id] = row.id;
+              } else failures[`${id}:${batch}:${slot.position}`] = slot.failure?.reason || 'Nie udało się wygenerować ćwiczenia.';
+            }
           }
-          await tx.clozeSession.updateMany({ where: { id: queued.id, status: 'running' }, data: { failuresJson: JSON.stringify(failures), exerciseIdsJson: JSON.stringify(assignments), generationProcessed: { increment: 1 } } });
+          await tx.clozeSession.updateMany({ where: { id: queued.id, status: 'running' }, data: { failuresJson: JSON.stringify(failures), exerciseIdsJson: JSON.stringify(assignments), generationProcessed: { increment: group.length } } });
           return true;
         }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
         if (!active) return;
       }
-      await this.prisma.clozeSession.updateMany({ where: { id: queued.id, status: 'running' }, data: { status: 'ready', failuresJson: JSON.stringify(failures) } });
+      await this.prisma.clozeSession.updateMany({ where: { id: queued.id, status: 'running' }, data: { status: 'ready', failuresJson: JSON.stringify(failures), generationRequested: missing.length > 0 } });
     } catch (error) {
       console.error('[Cloze generation worker]', error);
       if (runningId) {
@@ -263,46 +346,65 @@ export class ClozeService implements OnModuleInit, OnModuleDestroy {
     finally { this.working = false; }
   }
 
-  private async generate(id: string): Promise<GenerationResult> {
+  private async generate(ids: string[]): Promise<GenerationResult> {
     if (!process.env.OPENAI_API_KEY) throw new BadGatewayException('Brak konfiguracji OpenAI na serwerze.');
     if (profile.taxonomy?.sha256 !== taxonomyHash || profile.taxonomy?.schema_version !== taxonomy.schema_version) throw new ConflictException('Profil i taksonomia mają różne wersje.');
-    const lexical = (await this.input.prepare([id])).lexical_senses[0];
-    const allowed = new Set(['CAT-01', 'CAT-02', 'CAT-03', 'CAT-05', 'CAT-06', 'CAT-11', 'CAT-13']);
-    const variants = taxonomy.variants.filter((variant: any) => allowed.has(variant.category_id || variant.construction_id?.slice(0, 6)) && ['A1', 'A2', 'B1'].includes(variant.cefr?.reference_level));
-    const variantIds = new Set(variants.map((variant: any) => variant.id));
-    const constructionIds = new Set(variants.map((variant: any) => variant.construction_id));
+    const lexical = (await this.input.prepare(ids)).lexical_senses;
     const context = {
-      lexical_senses: [lexical],
-      taxonomy_subset: {
-        schema_version: taxonomy.schema_version, full_file_sha256: taxonomyHash,
-        categories: taxonomy.categories.filter((item: any) => allowed.has(item.id)),
-        constructions: taxonomy.constructions.filter((item: any) => constructionIds.has(item.id)),
-        variants,
-      },
-      competence_profile_subset: {
+      lexical_senses: lexical,
+      taxonomy: projectTaxonomyForGeneration(taxonomy, taxonomyHash),
+      competence_profile: {
         taxonomy: profile.taxonomy, estimated_user_level: profile.estimated_user_level,
-        competencies: profile.competencies.filter((item: any) => variantIds.has(item.taxonomy_node_id)),
+        competencies: profile.competencies,
       },
     };
-    const instructions = `${readFileSync(join(root, 'SKILL.md'), 'utf8')}\n\n${reference('generation_rules.md')}\n\nExercise schema:\n${reference('exercise.schema.json')}\n\nBatch schema:\n${reference('generation_result.schema.json')}\n\nThe server has already validated the complete profile and taxonomy files, including their schema versions and SHA-256. The input contains their relevant subsets; do not rehash the subset or reject it for omitting unrelated variants. Apply the skill rules to these candidates. Return the batch JSON object only. Every successful exercise requires a full Polish sentence_pl. A failure slot must state attempts (0–3) and reason.`;
-    let response: Response;
-    try {
-      response = await fetch(process.env.OPENAI_RESPONSES_URL || 'https://api.openai.com/v1/responses', {
-        method: 'POST', headers: { authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ model, instructions, input: JSON.stringify(context), max_output_tokens: 12000 }), signal: AbortSignal.timeout(180_000),
-      });
-    } catch { throw new BadGatewayException('Nie udało się połączyć z OpenAI.'); }
-    if (!response.ok) {
-      console.error('[Cloze generation API failure]', { lexicalSenseId: id, status: response.status });
-      throw new BadGatewayException(`OpenAI nie zwróciło ćwiczeń (HTTP ${response.status}).`);
+    const instructions = `${readFileSync(join(root, 'SKILL.md'), 'utf8')}\n\n${reference('generation_rules.md')}\n\nExercise schema:\n${reference('exercise.schema.json')}\n\nBatch schema:\n${reference('generation_result.schema.json')}\n\nThe server has already validated the complete profile and taxonomy files, including their schema versions and SHA-256. The input contains every taxonomy category, construction, variant and relation plus every learner competency, projected to fields needed for exercise selection. The original file hash is supplied for consistency; do not hash this projection or reject it for omitting editorial metadata. Apply the skill rules to these candidates. Return the batch JSON object only. Every successful exercise requires a full Polish sentence_pl. A failure slot must state attempts (0–3) and reason.`;
+    const url = process.env.OPENAI_RESPONSES_URL || 'https://api.openai.com/v1/responses';
+    const headers = { authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'content-type': 'application/json' };
+    const request = async (endpoint: string, options: RequestInit): Promise<any> => {
+      let response: Response;
+      try { response = await fetch(endpoint, options); }
+      catch (error) {
+        const name = error instanceof Error ? error.name : 'UnknownError';
+        const cause = error instanceof Error && error.cause && typeof error.cause === 'object' && 'code' in error.cause ? String(error.cause.code) : undefined;
+        console.error('[Cloze generation connection failure]', { name, cause });
+        throw new BadGatewayException(name === 'TimeoutError' || name === 'AbortError' ? 'Upłynął limit czasu połączenia z OpenAI.' : 'Nie udało się połączyć z OpenAI.');
+      }
+      let body: any;
+      try { body = await response.json(); } catch { throw new BadGatewayException('OpenAI zwróciło nieczytelną odpowiedź.'); }
+      if (!response.ok) {
+        const code = typeof body?.error?.code === 'string' ? body.error.code : undefined;
+        console.error('[Cloze generation API failure]', { lexicalSenseIds: ids, status: response.status, code });
+        throw openAiGenerationFailure(response.status, body);
+      }
+      return body;
+    };
+    let raw = await request(url, {
+      method: 'POST', headers,
+      body: JSON.stringify({ model, instructions, input: JSON.stringify(context), max_output_tokens: 12000 + (ids.length - 1) * 5000, background: true }),
+      signal: AbortSignal.timeout(60_000),
+    }) as { id?: string; status?: string; incomplete_details?: { reason?: string }; output_text?: string; output?: Array<{ content?: Array<{ type?: string; text?: string }> }> };
+    const deadline = Date.now() + 15 * 60_000;
+    let pollFailures = 0;
+    while (raw.status === 'queued' || raw.status === 'in_progress') {
+      if (!raw.id) throw new BadGatewayException('OpenAI nie podało identyfikatora generowania.');
+      if (Date.now() >= deadline) throw new BadGatewayException('OpenAI nie zakończyło generowania w ciągu 15 minut.');
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      try {
+        raw = await request(`${url}/${encodeURIComponent(raw.id)}`, { headers, signal: AbortSignal.timeout(30_000) });
+        pollFailures = 0;
+      } catch (error) {
+        if (!(error instanceof BadGatewayException) || ++pollFailures >= 3) throw error;
+      }
     }
-    const raw = await response.json() as { output_text?: string; output?: Array<{ content?: Array<{ type?: string; text?: string }> }> };
-    console.info('[Cloze generation response]', { lexicalSenseId: id, status: response.status, response: raw });
+    if (raw.status === 'incomplete') throw new BadGatewayException(raw.incomplete_details?.reason === 'max_output_tokens' ? 'OpenAI przerwało generowanie po osiągnięciu limitu długości odpowiedzi.' : 'OpenAI zwróciło niepełną odpowiedź.');
+    if (raw.status !== 'completed') throw new BadGatewayException(`OpenAI zakończyło generowanie stanem: ${raw.status || 'nieznany'}.`);
+    console.info('[Cloze generation response]', { lexicalSenseIds: ids, status: raw.status, response: raw });
     const text = raw.output_text || raw.output?.flatMap((item) => item.content || []).filter((part) => part.type === 'output_text').map((part) => part.text).join('');
     const generated = parseJson<GenerationResult>(text || '', {} as GenerationResult);
-    if (!validateResult(generated) || generated.results.length !== 1 || generated.results[0].lexical_sense_id !== id) throw new BadGatewayException('OpenAI zwróciło niepoprawną serię ćwiczeń.');
-    const slots = generated.results[0].slots;
-    if (new Set(slots.map((slot) => slot.position)).size !== 4 || new Set(slots.flatMap((slot) => slot.exercise ? [slot.exercise.exercise_id] : [])).size !== slots.filter((slot) => slot.exercise).length || slots.some((slot) => slot.exercise && !validContent(slot.exercise, id, slot.position))) throw new BadGatewayException('OpenAI zwróciło niespójne ćwiczenia.');
+    if (!validateResult(generated) || generated.results.length !== ids.length || new Set(generated.results.map((result) => result.lexical_sense_id)).size !== ids.length || generated.results.some((result) => !ids.includes(result.lexical_sense_id))) throw new BadGatewayException('OpenAI zwróciło niepoprawną serię ćwiczeń.');
+    const exerciseIds = generated.results.flatMap((result) => result.slots.flatMap((slot) => slot.exercise ? [slot.exercise.exercise_id] : []));
+    if (new Set(exerciseIds).size !== exerciseIds.length || generated.results.some((result) => new Set(result.slots.map((slot) => slot.position)).size !== 4 || result.slots.some((slot) => slot.exercise && !validContent(slot.exercise, result.lexical_sense_id, slot.position)))) throw new BadGatewayException('OpenAI zwróciło niespójne ćwiczenia.');
     return generated;
   }
 }

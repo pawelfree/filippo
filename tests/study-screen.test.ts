@@ -133,3 +133,41 @@ test('study reset requires confirmation and returns to fresh counters', async ()
     assert.match(window.document.getElementById('status')!.textContent!, /Postęp nauki został wyczyszczony/);
   } finally { dom.window.close(); }
 });
+
+test('cloze exercise usage reset is separate from FSRS progress', async () => {
+  const html = await readFile(join(process.cwd(), 'public/study.html'), 'utf8');
+  const script = await readFile(join(process.cwd(), 'dist/browser/study.js'), 'utf8');
+  const dom = new JSDOM(html, { url: 'http://localhost/study.html', runScripts: 'outside-only' });
+  try {
+    const { window } = dom;
+    let confirmed = false;
+    const calls: string[] = [];
+    window.confirm = () => confirmed;
+    (window as any).fetch = async (path: string, options?: RequestInit) => {
+      calls.push(`${options?.method || 'GET'} ${path}`);
+      if (path === '/api/cloze/exercise-usage/reset') return { ok: true, json: async () => ({ cleared: 4 }) };
+      if (path === '/api/study/next') return { ok: true, json: async () => ({ dueCount: 1, reinforcementCount: 0, newCount: 2, nextDueAt: null, candidate: { lexicalSenseId: 'one', kind: 'due', presentationToken: 'a'.repeat(64), sense: { lexical_item_it: 'casa', definition_it: 'abitazione' } } }) };
+      return { ok: true, json: async () => ({ dueCount: 1, reinforcementCount: 0, newCount: 2, nextDueAt: null }) };
+    };
+    window.eval(script);
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+    await settle();
+    assert.equal(window.document.querySelectorAll('[data-reset-cloze-usage]').length, 2);
+    (window.document.querySelector('#overview [data-reset-cloze-usage]') as HTMLButtonElement).click();
+    await settle();
+    assert.equal(calls.filter((call) => call === 'POST /api/cloze/exercise-usage/reset').length, 0);
+    confirmed = true;
+    (window.document.querySelector('#overview [data-reset-cloze-usage]') as HTMLButtonElement).click();
+    await settle();
+    assert.equal(calls.filter((call) => call === 'POST /api/cloze/exercise-usage/reset').length, 1);
+    assert.equal(calls.filter((call) => call === 'POST /api/study/reset').length, 0);
+    assert.equal(window.document.getElementById('overview-due')!.textContent, '1');
+    (window.document.getElementById('start') as HTMLButtonElement).click();
+    await settle();
+    (window.document.querySelector('#session [data-reset-cloze-usage]') as HTMLButtonElement).click();
+    await settle();
+    assert.equal(calls.filter((call) => call === 'POST /api/cloze/exercise-usage/reset').length, 2);
+    assert.equal(window.document.getElementById('session')!.hidden, false);
+    assert.match(window.document.getElementById('status')!.textContent!, /Ćwiczenia cloze są ponownie dostępne/);
+  } finally { dom.window.close(); }
+});

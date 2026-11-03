@@ -11,6 +11,7 @@ const note = document.getElementById('overview-note')!;
 const sense = document.getElementById('study-sense')!;
 const ratings = [...document.querySelectorAll<HTMLButtonElement>('[data-rating]')];
 const resetButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-reset-study]')];
+const resetClozeUsageButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-reset-cloze-usage]')];
 const storageKey = 'filippo.study.pendingAttempt';
 const startedKey = 'filippo.study.started';
 let sessionActive = false;
@@ -35,6 +36,7 @@ function setBusy(value: boolean) {
   retry.disabled = value;
   retrySession.disabled = value;
   resetButtons.forEach((button) => { button.disabled = value; });
+  resetClozeUsageButtons.forEach((button) => { button.disabled = value || !!pending; });
 }
 async function request(path: string, options?: RequestInit) {
   const response = await fetch(path, options);
@@ -204,6 +206,16 @@ for (const button of resetButtons) button.addEventListener('click', async () => 
     renderCounts(data);
     setError('');
     setStatus('Postęp nauki został wyczyszczony. Wszystkie znaczenia są ponownie nowe.');
+  } catch (cause: any) { setError(cause.message); }
+  finally { setBusy(false); }
+});
+for (const button of resetClozeUsageButtons) button.addEventListener('click', async () => {
+  if (busy || pending || !window.confirm('Oznaczyć wszystkie ćwiczenia cloze jako niewykorzystane? Oceny FSRS, odpowiedzi i zapisane ćwiczenia pozostaną.')) return;
+  try {
+    setBusy(true);
+    await request('/api/cloze/exercise-usage/reset', { method: 'POST' });
+    setError('');
+    setStatus('Ćwiczenia cloze są ponownie dostępne. Oceny i odpowiedzi pozostały zapisane.');
   } catch (cause: any) { setError(cause.message); }
   finally { setBusy(false); }
 });

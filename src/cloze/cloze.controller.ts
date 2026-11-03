@@ -5,9 +5,10 @@ import { ClozeService } from './cloze.service';
 export class ClozeController {
   constructor(@Inject(ClozeService) private readonly cloze: ClozeService) {}
 
-  @Get('overview') overview() { return this.cloze.overview(); }
-  @Post('sessions') create(@Body() body: { count?: unknown }) { return this.cloze.createSession(body?.count); }
+  @Post('sessions') create(@Body() body: { count?: unknown; mode?: unknown }) { return this.cloze.createSession(body?.count, body?.mode ?? 'all'); }
   @Get('sessions') sessions() { return this.cloze.listSessions(); }
   @Get('sessions/:id') session(@Param('id') id: string) { return this.cloze.session(id); }
+  @Post('sessions/:id/retry-generation') retryGeneration(@Param('id') id: string) { return this.cloze.retryMissing(id); }
   @Post('sessions/:id/answers') answer(@Param('id') id: string, @Body() body: { eventId?: unknown; position?: unknown; responses?: unknown }) { return this.cloze.answer(id, body); }
+  @Post('exercise-usage/reset') resetExerciseUsage() { return this.cloze.resetExerciseUsage(); }
 }

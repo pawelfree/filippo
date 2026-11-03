@@ -3,6 +3,10 @@
 Status: implemented
 Created: 2026-11-03
 Implemented: 2026-11-03 — współdzielona kolejka FSRS, przydział kolejnych ćwiczeń, utrwalenia na tym samym ćwiczeniu, liczniki i migracja bazy; testy 32/32.
+Updated: 2026-11-03 — liczniki cloze korzystają bezpośrednio z `GET /api/study/overview` i pokazują błąd odczytu zamiast pustych pól; zobacz [poprawkę liczników](../../runs/2026-11-03-cloze-empty-counters.md).
+Updated: 2026-11-03 — wykorzystanie ćwiczenia jest osobnym stanem, który można wyczyścić bez usuwania ocen; zobacz [reset wykorzystania](2026-11-03-reset-cloze-exercise-usage.md).
+Updated: 2026-11-03 — osobny tryb powtórek ponownie wykorzystuje ostatnie ćwiczenie cloze, podczas gdy tryb nowych znaczeń korzysta z niewykorzystanych ćwiczeń; zobacz [rozdzielenie trybów](2026-11-03-cloze-review-mode.md).
+Updated: 2026-11-03 — ponowne wykorzystanie ćwiczenia w powtórce zależy od dnia ostatniej próby; zobacz [rotację ćwiczeń](2026-11-03-cloze-exercise-rotation.md).
 
 ## Problem
 

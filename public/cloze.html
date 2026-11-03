@@ -23,23 +23,25 @@
       </nav>
     </header>
     <main class="shell lexical-shell">
-      <section class="intro"><div><p class="eyebrow">Włoskie słownictwo</p><h1>Nauka <em>cloze</em></h1><p>Uzupełnij luki na podstawie polskiego zdania. Każde znaczenie pojawi się raz w tej sesji.</p></div></section>
+      <section class="intro"><div><p class="eyebrow">Włoskie słownictwo</p><h1>Nauka <em>cloze</em></h1><p>Uzupełnij luki na podstawie polskiego zdania. Znaczenia do nauki wybiera kolejka FSRS.</p></div></section>
       <div id="cloze-status" class="status" role="status" aria-live="polite"></div>
       <div id="cloze-error" class="error" role="alert" hidden></div>
       <section id="cloze-start" class="lexical-panel">
         <div class="section-heading"><span>Przegląd</span><h2>Dziś do nauki</h2></div>
         <div class="study-counters" aria-live="polite">
-          <div class="study-counter"><strong id="cloze-overview-due">—</strong><span>Do powtórki teraz</span></div>
+          <div class="study-counter"><strong id="cloze-overview-due">—</strong><span>Zaplanowane powtórki FSRS</span></div>
+          <div class="study-counter"><strong id="cloze-overview-reinforcement">—</strong><span>Do utrwalenia dziś</span></div>
           <div class="study-counter"><strong id="cloze-overview-new">—</strong><span>Nowe znaczenia</span></div>
         </div>
-        <h3>Ile znaczeń chcesz przećwiczyć?</h3>
+        <button id="cloze-review-start" type="button" disabled>Powtórz teraz</button>
+        <h3>Ile nowych znaczeń chcesz przećwiczyć?</h3>
         <form id="cloze-start-form" class="cloze-start-form">
           <label for="cloze-count">Liczba słów lub wyrażeń</label>
           <input id="cloze-count" type="number" min="1" max="20" value="5" required />
-          <button id="cloze-start-submit" type="submit" disabled>Rozpocznij</button>
+          <button id="cloze-start-submit" type="submit" disabled>Rozpocznij nowe</button>
         </form>
         <p id="cloze-overview-note" class="hint"></p>
-        <p class="hint">Brakujące ćwiczenia zostaną wygenerowane i zapisane. W tej sesji zobaczysz pierwsze ćwiczenie każdego wybranego znaczenia.</p>
+        <p class="hint">Po błędzie w cloze utrwalenie używa tego samego ćwiczenia. Powtórka po wcześniejszym dniu używa kolejnego ćwiczenia.</p>
       </section>
       <section id="cloze-session" class="lexical-panel" hidden>
         <div class="section-heading"><span>Sesja cloze</span><h2 id="cloze-progress">Przygotowywanie…</h2></div>
@@ -65,7 +67,7 @@
             <button id="cloze-next" type="button">Następne ćwiczenie</button>
           </div>
         </article>
-        <div class="actions"><button id="cloze-new" class="secondary" type="button">Nowa sesja</button><button id="cloze-retry" class="secondary" type="button" hidden>Ponów zapis odpowiedzi</button></div>
+        <div class="actions"><button id="cloze-new" class="secondary" type="button">Nowa sesja</button><button id="cloze-generation-retry" type="button" hidden>Ponów brakujące ćwiczenia</button><button id="cloze-retry" class="secondary" type="button" hidden>Ponów zapis odpowiedzi</button></div>
       </section>
       <section class="lexical-panel" aria-labelledby="cloze-history-heading">
         <div class="section-heading"><span>Ostatnie 20 zleceń</span><h2 id="cloze-history-heading">Stan generowania ćwiczeń</h2></div>

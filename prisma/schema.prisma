@@ -33,8 +33,15 @@ model ClozeExercise {
   createdAt      DateTime     @default(now())
   lexicalSense   LexicalSense @relation(fields: [lexicalSenseId], references: [id], onDelete: Restrict)
   attempts       ClozeAttempt[]
+  usage          ClozeExerciseUsage?
 
   @@unique([lexicalSenseId, batch, position])
+}
+
+model ClozeExerciseUsage {
+  exerciseId String @id
+  usedAt     DateTime @default(now())
+  exercise   ClozeExercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
 }
 
 model ClozeSession {
@@ -46,6 +53,8 @@ model ClozeSession {
   status          String         @default("queued")
   cursor          Int            @default(0)
   generationProcessed Int?
+  generationTotal Int           @default(0)
+  generationRequested Boolean      @default(false)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   attempts        ClozeAttempt[]

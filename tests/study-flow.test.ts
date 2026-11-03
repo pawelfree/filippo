@@ -42,6 +42,8 @@ test('a forgotten new meaning returns after the other new meanings', async () =>
       { lexicalSenseId: second.id, kind: 'new' },
       { lexicalSenseId: first.id, kind: 'reinforcement' },
     ]);
+    assert.deepEqual(await study.selectForCloze(2, 'review'), [{ lexicalSenseId: first.id, kind: 'reinforcement' }]);
+    assert.deepEqual(await study.selectForCloze(2, 'new'), [{ lexicalSenseId: second.id, kind: 'new' }]);
     const learned = await study.record({ eventId: randomUUID(), lexicalSenseId: second.id, presentationToken: forgotten.candidate!.presentationToken, rating: Rating.Good });
     assert.equal(learned.candidate?.lexicalSenseId, first.id);
     assert.equal(learned.candidate?.kind, 'reinforcement');
@@ -61,6 +63,8 @@ test('a forgotten new meaning returns after the other new meanings', async () =>
     const due = await resumed.next();
     assert.equal(due.candidate?.lexicalSenseId, first.id);
     assert.equal(due.candidate?.kind, 'due');
+    assert.deepEqual(await resumed.selectForCloze(3, 'review'), [{ lexicalSenseId: first.id, kind: 'due' }]);
+    assert.deepEqual(await resumed.selectForCloze(3, 'new'), [{ lexicalSenseId: third.id, kind: 'new' }]);
     const dueAgain = await resumed.record({ eventId: randomUUID(), lexicalSenseId: first.id, presentationToken: due.candidate!.presentationToken, rating: Rating.Again });
     assert.equal(dueAgain.candidate?.kind, 'reinforcement');
     const reviewsAfterDue = await prisma.fsrsReview.count();

@@ -1,9 +1,32 @@
 # Lessons learned
 
+- Gdy generator ma wybierać cele z całej taksonomii, nie filtruj z góry kategorii ani poziomów CEFR. Przesyłaj pełny zbiór identyfikatorów i znaczenia reguł, a odrzucaj tylko redakcyjne metadane; przy porównaniu rozmiaru podawaj osobno pełny plik i wcześniejszy ograniczony wycinek, bo poszerzenie zakresu może zwiększyć rzeczywiste żądanie. Zobacz [pomiar](runs/2026-11-03-complete-compact-cloze-taxonomy.md).
+
+- Długie żądania Responses API uruchamiaj w tle i pobieraj po identyfikatorze; timeout połączenia HTTP może nastąpić mimo późniejszego wyniku widocznego w logu OpenAI. Odczyt ponawiaj bez nowego żądania generowania i ogranicz całkowity czas oczekiwania; zobacz [naprawę cloze](runs/2026-11-03-cloze-background-response.md).
+
+- W historii generowania cloze nazywaj jednostkę postępu: licznik dotyczy różnych znaczeń wymagających ćwiczeń, a każdy zestaw zawiera cztery ćwiczenia. Gdy AI odrzuca żądanie, mapuj bezpieczny kod API na konkretną przyczynę i nie zapisuj pełnej treści błędu, która może zawierać fragment klucza; zobacz [diagnozę](runs/2026-11-03-cloze-openai-error-and-progress.md).
+
 Read this index before working on related areas. Add concise, evidence-based lessons here after a bug fix or other reusable finding. Put longer explanations in `lessons/YYYY-MM-DD-slug.md` and link them from the entry.
 
+- Stan nieudanego przygotowania ćwiczeń nie powinien pokazywać licznika ukończonych odpowiedzi przed rozpoczęciem nauki. Błędy przypisane do `LexicalSense` przedstawiaj przez wyrażenie i krótki polski gloss, nie przez numer porządkowy ani surowy identyfikator; zobacz [poprawkę ekranu](runs/2026-11-03-cloze-failure-labels.md).
+
+- Po zmianie kształtu odpowiedzi API sprawdzaj działający serwer, nie tylko źródła i bazę: `tsx watch` może nadal obsługiwać żądania starszym procesem. Brakującego mianownika postępu generowania nie zastępuj liczbą znaczeń sesji, bo opisuje inną wielkość; zobacz [naprawę licznika](runs/2026-11-03-cloze-stale-generation-total.md).
+
+- Postęp generowania licz od znaczeń bez przydzielonego ćwiczenia, a nie od całej sesji nauki. Kontrakt generatora przyjmuje listę znaczeń, więc można grupować brakujące po pięć i zapisywać wynik każdej grupy osobno. Po błędzie pokaż jedno zgłoszenie na znaczenie i pozwól ponowić braki; zobacz [generowanie grupowe](runs/2026-11-03-cloze-batched-generation.md).
+
+- Po dodaniu licznika do wspólnego komponentu sprawdź liczbę kolumn i limit szerokości używanej klasy. Widok cloze dziedziczył dwukolumnową siatkę z ekranu Nauka; poprawiono ją lokalnie bez zmiany tamtego ekranu. Zobacz [układ liczników](runs/2026-11-03-cloze-counters-layout.md).
+
+- Lista generowania cloze nie może być listą wszystkich sesji nauki. Zapisuj osobny znacznik zlecenia AI, filtruj przed limitem 20 rekordów i klasyfikuj starsze rekordy na podstawie dowodów generowania; zobacz [poprawkę listy](runs/2026-11-03-cloze-generation-job-list.md).
+
+- W cloze rozdzielaj start należnych powtórek i utrwaleń od wyboru liczby nowych znaczeń. Licznik FSRS „do powtórki” obejmuje także wcześniejsze dni; lokalne utrwalenia mają osobny licznik. Zobacz [tryb powtórek](runs/2026-11-03-cloze-review-mode.md).
+- Przydział ćwiczenia do zaplanowanej powtórki zależy od dnia ostatniej próby cloze w strefie Warszawy: dziś ponów, po wcześniejszym dniu wybierz niewykorzystane lub generuj. Utrwalenie po dzisiejszym błędzie cloze ponawia ćwiczenie; zobacz [rotację](runs/2026-11-03-cloze-exercise-rotation.md).
+
+- Gdy użytkownik ma niezależnie zerować wykorzystanie ćwiczeń, nie wyprowadzaj go wyłącznie z trwałej historii ocen. Utrzymuj osobne oznaczenia, zasil je z istniejących prób i usuwaj bez naruszania FSRS ani odpowiedzi; zobacz [reset wykorzystania cloze](runs/2026-11-03-reset-cloze-exercise-usage.md).
+
+- Współdzielone liczniki FSRS pobieraj z tego samego endpointu na obu ekranach. Dodatkowy adres cloze mógł być niedostępny w działającym backendzie, pozostawiając puste pola; błąd odczytu powinien być widoczny w samych licznikach. Zobacz [poprawkę liczników](runs/2026-11-03-cloze-empty-counters.md).
+
 - Różne tryby nauki korzystające z jednego FSRS powinny współdzielić wybór kolejki i historię prób. W cloze osobna selekcja oraz brak `StudyAttempt` ukrywały utrwalenia przed ekranem „Nauka”; zobacz [integrację FSRS](runs/2026-11-03-cloze-fsrs-queue.md).
-- Przy serii ćwiczeń zachowuj poprzednie rekordy i trwały przydział do sesji. Utrwalenie lokalne używa tego samego rekordu, kolejna sesja niewykorzystanego rekordu, a wyczerpanie puli uruchamia nowy zestaw; zobacz [integrację cloze](runs/2026-11-03-cloze-fsrs-queue.md).
+- Przy serii ćwiczeń zachowuj poprzednie rekordy i trwały przydział do sesji. Utrwalenie lokalne używa tego samego rekordu, powtórka po wcześniejszym dniu niewykorzystanego rekordu, a wyczerpanie puli uruchamia nowy zestaw; zobacz [integrację cloze](runs/2026-11-03-cloze-fsrs-queue.md) i [rotację](runs/2026-11-03-cloze-exercise-rotation.md).
 
 - Akcja ręcznego odświeżenia powinna wyraźnie wyglądać na dostępną i sygnalizować trwający odczyt na samym przycisku, bez zbędnego potwierdzenia sukcesu. Gdy automatyczny odczyt już trwa, zapamiętaj ręczne żądanie zamiast cicho je pomijać; zobacz [widok stanu cloze](runs/2026-11-03-cloze-refresh-control.md).
 

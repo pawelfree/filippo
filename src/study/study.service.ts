@@ -7,6 +7,7 @@ import { FsrsService, type FsrsRating } from '../fsrs/fsrs.service';
 
 type StudyDb = PrismaService | Prisma.TransactionClient;
 type Kind = 'due' | 'reinforcement' | 'new';
+type ClozeSelection = 'all' | 'review' | 'new';
 type Counts = { dueCount: number; reinforcementCount: number; newCount: number; nextDueAt: Date | null };
 type Candidate = { lexicalSenseId: string; sense: Record<string, unknown>; kind: Kind; presentationToken: string };
 type Next = Counts & { candidate: Candidate | null };
@@ -49,7 +50,7 @@ export class StudyService {
     return { latest, formalKind };
   }
 
-  private async snapshot(db: StudyDb, now: Date, excluded: ReadonlySet<string> = new Set()): Promise<Next> {
+  private async snapshot(db: StudyDb, now: Date, excluded: ReadonlySet<string> = new Set(), selection: ClozeSelection = 'all'): Promise<Next> {
     const day = dayKey(now);
     const [due, future, newCount, today, config] = await Promise.all([
       db.fsrsState.findMany({ where: { learnerId, dueAt: { lte: now }, lexicalSenseId: { notIn: [...excluded] } }, include: { lexicalSense: true }, orderBy: [{ dueAt: 'asc' }, { lexicalSenseId: 'asc' }] }),
@@ -67,9 +68,9 @@ export class StudyService {
     const reinforcement = pending.filter((attempt) => pendingById.has(attempt.lexicalSenseId));
     const dueReinforcement = reinforcement.filter((attempt) => today.formalKind.get(attempt.lexicalSenseId) === 'due');
     const newReinforcement = reinforcement.filter((attempt) => today.formalKind.get(attempt.lexicalSenseId) !== 'due');
-    const newSense = due.length || dueReinforcement.length ? null : await db.lexicalSense.findFirst({ where: { fsrsStates: { none: {} }, id: { notIn: [...excluded] } }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] });
-    const selectedReinforcement = dueReinforcement[0] ?? (newSense ? null : newReinforcement[0]);
-    const selected = due[0] ? { kind: 'due' as const, sense: due[0].lexicalSense, state: due[0] } : selectedReinforcement ? { kind: 'reinforcement' as const, sense: pendingById.get(selectedReinforcement.lexicalSenseId)!.lexicalSense, state: pendingById.get(selectedReinforcement.lexicalSenseId)! } : newSense ? { kind: 'new' as const, sense: newSense, state: null } : null;
+    const newSense = selection === 'review' || (selection === 'all' && (due.length || dueReinforcement.length)) ? null : await db.lexicalSense.findFirst({ where: { fsrsStates: { none: {} }, id: { notIn: [...excluded] } }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] });
+    const selectedReinforcement = selection === 'new' ? null : dueReinforcement[0] ?? (newSense && selection === 'all' ? null : newReinforcement[0]);
+    const selected = selection !== 'new' && due[0] ? { kind: 'due' as const, sense: due[0].lexicalSense, state: due[0] } : selectedReinforcement ? { kind: 'reinforcement' as const, sense: pendingById.get(selectedReinforcement.lexicalSenseId)!.lexicalSense, state: pendingById.get(selectedReinforcement.lexicalSenseId)! } : newSense ? { kind: 'new' as const, sense: newSense, state: null } : null;
     if (selected?.state) this.fsrs.readStoredCard(selected.state);
     return {
       dueCount: due.length, reinforcementCount: reinforcement.length, newCount, nextDueAt: future?.dueAt ?? null,
@@ -88,13 +89,13 @@ export class StudyService {
 
   async next(): Promise<Next> { await this.fsrs.getConfig(); return this.snapshot(this.prisma, new Date()); }
 
-  async selectForCloze(limit: number): Promise<Array<{ lexicalSenseId: string; kind: Kind }>> {
+  async selectForCloze(limit: number, selection: ClozeSelection = 'all'): Promise<Array<{ lexicalSenseId: string; kind: Kind }>> {
     await this.fsrs.getConfig();
     const selected: Array<{ lexicalSenseId: string; kind: Kind }> = [];
     const excluded = new Set<string>();
     const now = new Date();
     while (selected.length < limit) {
-      const candidate = (await this.snapshot(this.prisma, now, excluded)).candidate;
+      const candidate = (await this.snapshot(this.prisma, now, excluded, selection)).candidate;
       if (!candidate) break;
       selected.push({ lexicalSenseId: candidate.lexicalSenseId, kind: candidate.kind });
       excluded.add(candidate.lexicalSenseId);
@@ -109,6 +110,7 @@ export class StudyService {
       if (!config) throw new ConflictException('Brak konfiguracji FSRS.');
       await tx.clozeAttempt.deleteMany();
       await tx.clozeSession.deleteMany();
+      await tx.clozeExerciseUsage.deleteMany();
       await tx.studyAttempt.deleteMany();
       await tx.fsrsReview.deleteMany();
       await tx.fsrsState.deleteMany();

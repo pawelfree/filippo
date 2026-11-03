@@ -1,3 +1,4 @@
+#cloze-start > .study-counters{grid-template-columns:repeat(3,minmax(0,1fr));max-width:none}
 .cloze-start-form{display:flex;align-items:end;flex-wrap:wrap;gap:12px;margin:20px 0}
 .cloze-start-form label{width:100%;font-size:13px;font-weight:700;color:#486551}
 .cloze-start-form input{width:120px;padding:10px 12px;border:1px solid #cbd9cb;border-radius:8px;background:#fff}
@@ -16,4 +17,6 @@
 .cloze-jobs .job-table{min-width:560px}
 .cloze-job-note{max-width:320px;overflow-wrap:anywhere;color:#675f55;font-size:12px}
 #cloze-history-refresh:hover,#cloze-history-refresh:focus-visible{background:#365c73}
+@media(max-width:760px){#cloze-start > .study-counters{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){#cloze-start > .study-counters{grid-template-columns:1fr}}
 @media(max-width:640px){.cloze-card{padding:16px}.cloze-prompt{font-size:17px}.cloze-polish{font-size:16px}}

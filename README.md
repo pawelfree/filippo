@@ -23,6 +23,7 @@ Dane źródłowe i schematy JSON znajdują się w `.ai/docs/`. Przy uruchomieniu
 
 - `GET /api/taxonomy`
 - `GET /api/profile`
+- `POST /api/lexical-senses/exercise-generation-input` — `{ "ids": ["id-zapisanego-znaczenia"] }`; zwraca wyłącznie `{ "lexical_senses": [...] }` z projekcjami wybranych znaczeń. To odczyt; nie wywołuje AI ani nie zapisuje zadań.
 - `POST /api/lexical-senses/check` — `{ "items": ["casa"] }`; zwraca istniejące znaczenia i `checkId`.
 - `POST /api/lexical-senses/generate` — `{ "items": ["casa"], "checkId": "..." }`; zwraca propozycje, `deferred`, `coverage` i `draftId`.
 - `POST /api/lexical-senses/save` — `{ "draftId": "...", "selected": [{ "index": 0, "definition_pl": "..." }] }`; zwraca wynik zapisu dla każdego wyboru.

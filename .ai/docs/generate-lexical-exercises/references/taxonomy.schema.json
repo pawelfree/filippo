@@ -1,0 +1,706 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tassonomia grammaticale italiana 1.3.0",
+  "description": "Struttura 1.3.0 con profili di categorizzazione, casi normativi descrittivi e metadati CEFR facoltativi. Gerarchia invariata. Ordine degli estremi CEFR, integrità dei riferimenti e fondatezza linguistica richiedono controlli ulteriori.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "language",
+    "categories",
+    "constructions",
+    "variants",
+    "relations",
+    "metadata"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.3.0"
+    },
+    "language": {
+      "const": "it"
+    },
+    "categories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "constructions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "category_id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "category_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "variants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "construction_id",
+          "name",
+          "slug",
+          "definition"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^CAT-[0-9]{2}-CON-[0-9]{2}-VAR-[0-9]{3}$"
+          },
+          "construction_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "definition": {
+            "type": "string"
+          },
+          "operational_profile": {
+            "type": "object",
+            "required": [
+              "phenomenon_type",
+              "annotation",
+              "examples",
+              "sources"
+            ],
+            "properties": {
+              "phenomenon_type": {
+                "enum": [
+                  "syntactic_interpretation",
+                  "linear_order",
+                  "information_structure_function",
+                  "morphosyntactic_rule_family",
+                  "subordinate_relation",
+                  "mood_variation"
+                ]
+              },
+              "annotation": {
+                "type": "object",
+                "required": [
+                  "role",
+                  "required_information",
+                  "positive_criteria",
+                  "exclusion_criteria",
+                  "insufficient_evidence_action"
+                ],
+                "properties": {
+                  "role": {
+                    "enum": [
+                      "context_dependent_label",
+                      "descriptive_label",
+                      "umbrella_descriptor",
+                      "configuration_dependent_label",
+                      "traditional_label_with_semantic_overlap",
+                      "construction_and_register_dependent_label"
+                    ]
+                  },
+                  "required_information": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 1
+                  },
+                  "positive_criteria": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 1
+                  },
+                  "exclusion_criteria": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 1
+                  },
+                  "insufficient_evidence_action": {
+                    "const": "undetermined"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "examples": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "text",
+                    "context",
+                    "decision",
+                    "reason"
+                  ],
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "context": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "decision": {
+                      "enum": [
+                        "assign",
+                        "do_not_assign",
+                        "undetermined"
+                      ]
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minItems": 1
+              },
+              "more_specific_annotation_targets": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minItems": 1
+              },
+              "rule_cases": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "case_id",
+                    "title",
+                    "conditions",
+                    "rule_status",
+                    "agreement_controller",
+                    "rule",
+                    "accepted_examples",
+                    "excluded_contexts",
+                    "sources"
+                  ],
+                  "properties": {
+                    "case_id": {
+                      "type": "string",
+                      "pattern": "^PP-[0-9]{2}$"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "conditions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "minItems": 1
+                    },
+                    "rule_status": {
+                      "enum": [
+                        "mandatory",
+                        "preferred",
+                        "variable",
+                        "construction_dependent"
+                      ]
+                    },
+                    "agreement_controller": {
+                      "type": "string"
+                    },
+                    "rule": {
+                      "type": "string"
+                    },
+                    "accepted_examples": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "text",
+                          "usage"
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string"
+                          },
+                          "usage": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "excluded_contexts": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "minItems": 1
+                    },
+                    "sources": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "minItems": 1
+                    },
+                    "cefr": {
+                      "$ref": "#/$defs/cefrProfile"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "rule_cases_scope": {
+                "type": "string"
+              },
+              "normative_cases": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "case_id",
+                    "construction",
+                    "normative_status",
+                    "classification_note"
+                  ],
+                  "properties": {
+                    "case_id": {
+                      "type": "string",
+                      "pattern": "^MV-[0-9]{2}$"
+                    },
+                    "construction": {
+                      "type": "string"
+                    },
+                    "normative_status": {
+                      "enum": [
+                        "standard_alternation",
+                        "register_dependent",
+                        "no_free_alternation"
+                      ]
+                    },
+                    "examples": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "minItems": 1
+                    },
+                    "example": {
+                      "type": "string"
+                    },
+                    "formal_standard_example": {
+                      "type": "string"
+                    },
+                    "colloquial_example": {
+                      "type": "string"
+                    },
+                    "classification_note": {
+                      "type": "string"
+                    },
+                    "cefr": {
+                      "$ref": "#/$defs/cefrProfile"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "cefr": {
+            "$ref": "#/$defs/cefrProfile"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source_id",
+          "target_id",
+          "type"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string"
+          },
+          "target_id": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "related",
+              "contrast"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "required": [
+        "description",
+        "relation_semantics",
+        "counts",
+        "revision_note",
+        "operational_policy"
+      ],
+      "properties": {
+        "cefr_policy": {
+          "type": "object",
+          "required": [
+            "profile_version",
+            "status",
+            "levels",
+            "scope",
+            "methodology",
+            "field_semantics",
+            "interpretation_constraints",
+            "sources",
+            "source_scope",
+            "review_date"
+          ],
+          "properties": {
+            "profile_version": {
+              "const": "1.0.0"
+            },
+            "status": {
+              "const": "editorial_estimate_not_empirically_validated"
+            },
+            "levels": {
+              "type": "array",
+              "minItems": 6,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "A1",
+                  "A2",
+                  "B1",
+                  "B2",
+                  "C1",
+                  "C2"
+                ]
+              }
+            },
+            "scope": {
+              "type": "string",
+              "minLength": 1
+            },
+            "methodology": {
+              "type": "string",
+              "minLength": 1
+            },
+            "field_semantics": {
+              "type": "object",
+              "required": [
+                "reference_level",
+                "level_range",
+                "focus",
+                "description",
+                "mapping_status",
+                "aspects"
+              ],
+              "properties": {
+                "reference_level": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "level_range": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "focus": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "mapping_status": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "aspects": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": false
+            },
+            "interpretation_constraints": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "sources": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "title",
+                  "url",
+                  "use"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "url": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "use": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "source_scope": {
+              "type": "string",
+              "minLength": 1
+            },
+            "review_date": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "cefrProfile": {
+      "type": "object",
+      "required": [
+        "reference_level",
+        "level_range",
+        "focus",
+        "description",
+        "mapping_status"
+      ],
+      "properties": {
+        "reference_level": {
+          "type": "string",
+          "enum": [
+            "A1",
+            "A2",
+            "B1",
+            "B2",
+            "C1",
+            "C2"
+          ],
+          "description": "Livello orientativo al quale è tipicamente gestibile in autonomia l’attività descritta, entro i contesti, i registri e i limiti esplicitati nel profilo. Con focus use_and_understanding si riferisce all’uso produttivo autonomo; con focus understanding_in_context si riferisce alla comprensione autonoma in contesto. Autonomia significa assenza di un modello da riprodurre o di una guida passo per passo, non assenza di errori. Non indica prima introduzione, padronanza completa o requisito universale di un programma. Nelle famiglie ampie description identifica l’uso al quale si riferisce il valore generale; il profilo del caso o aspetto pertinente ha precedenza per quell’ambito."
+        },
+        "level_range": {
+          "type": "object",
+          "required": [
+            "from",
+            "to"
+          ],
+          "properties": {
+            "from": {
+              "type": "string",
+              "enum": [
+                "A1",
+                "A2",
+                "B1",
+                "B2",
+                "C1",
+                "C2"
+              ]
+            },
+            "to": {
+              "type": "string",
+              "enum": [
+                "A1",
+                "A2",
+                "B1",
+                "B2",
+                "C1",
+                "C2"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "description": "Fascia redazionale delle difficoltà degli usi descritti e delle differenze di progressione dei sillabi. Non è una successione prima esposizione–uso–padronanza né una coppia implicita di livelli ricettivo e produttivo. In un profilo con casi o aspetti può riassumere ambiti diversi, ciascuno con il proprio focus; la sola fascia generale non assegna tutti i suoi livelli alla stessa attività."
+        },
+        "focus": {
+          "enum": [
+            "use_and_understanding",
+            "understanding_in_context"
+          ],
+          "description": "Con use_and_understanding il valore numerico di reference_level riguarda la produzione autonoma nell’ambito descritto; la comprensione è pertinente ma non riceve per questo lo stesso livello e può precedere l’uso. Con understanding_in_context il valore riguarda soltanto la comprensione e interpretazione autonoma dell’ambito descritto; non attribuisce un livello produttivo e non comporta una richiesta di produzione. La differenza è specificata negli aspetti solo dove descritta esplicitamente."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Identifica l’attività e l’uso concreto cui si riferisce reference_level. Nelle famiglie ampie chiarisce l’ancoraggio del valore generale e l’ambito dei casi più semplici o più complessi. Non sostituisce i criteri grammaticali né attribuisce a una persona un livello di competenza."
+        },
+        "mapping_status": {
+          "const": "editorial_estimate"
+        },
+        "aspects": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/cefrAspect"
+          },
+          "description": "Profili descrittivi interni ai metadati CEFR per usi o attività distinti, compresa comprensione rispetto a produzione quando esplicitate. Ogni aspetto ha il proprio reference_level e focus e prevale sul valore generale nel suo ambito; non ne eredita automaticamente l’attività. Gli identificatori sono locali. Non sono nuovi nodi della gerarchia né competenze indipendenti da sommare."
+        }
+      },
+      "additionalProperties": false
+    },
+    "cefrAspect": {
+      "type": "object",
+      "required": [
+        "aspect_id",
+        "title",
+        "reference_level",
+        "level_range",
+        "focus",
+        "description",
+        "mapping_status"
+      ],
+      "properties": {
+        "aspect_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reference_level": {
+          "type": "string",
+          "enum": [
+            "A1",
+            "A2",
+            "B1",
+            "B2",
+            "C1",
+            "C2"
+          ],
+          "description": "Livello orientativo al quale è tipicamente gestibile in autonomia l’attività descritta, entro i contesti, i registri e i limiti esplicitati nel profilo. Con focus use_and_understanding si riferisce all’uso produttivo autonomo; con focus understanding_in_context si riferisce alla comprensione autonoma in contesto. Autonomia significa assenza di un modello da riprodurre o di una guida passo per passo, non assenza di errori. Non indica prima introduzione, padronanza completa o requisito universale di un programma. Nelle famiglie ampie description identifica l’uso al quale si riferisce il valore generale; il profilo del caso o aspetto pertinente ha precedenza per quell’ambito."
+        },
+        "level_range": {
+          "type": "object",
+          "required": [
+            "from",
+            "to"
+          ],
+          "properties": {
+            "from": {
+              "type": "string",
+              "enum": [
+                "A1",
+                "A2",
+                "B1",
+                "B2",
+                "C1",
+                "C2"
+              ]
+            },
+            "to": {
+              "type": "string",
+              "enum": [
+                "A1",
+                "A2",
+                "B1",
+                "B2",
+                "C1",
+                "C2"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "description": "Fascia redazionale delle difficoltà degli usi descritti e delle differenze di progressione dei sillabi. Non è una successione prima esposizione–uso–padronanza né una coppia implicita di livelli ricettivo e produttivo. In un profilo con casi o aspetti può riassumere ambiti diversi, ciascuno con il proprio focus; la sola fascia generale non assegna tutti i suoi livelli alla stessa attività."
+        },
+        "focus": {
+          "enum": [
+            "use_and_understanding",
+            "understanding_in_context"
+          ],
+          "description": "Con use_and_understanding il valore numerico di reference_level riguarda la produzione autonoma nell’ambito descritto; la comprensione è pertinente ma non riceve per questo lo stesso livello e può precedere l’uso. Con understanding_in_context il valore riguarda soltanto la comprensione e interpretazione autonoma dell’ambito descritto; non attribuisce un livello produttivo e non comporta una richiesta di produzione. La differenza è specificata negli aspetti solo dove descritta esplicitamente."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Identifica l’attività e l’uso concreto cui si riferisce reference_level. Nelle famiglie ampie chiarisce l’ancoraggio del valore generale e l’ambito dei casi più semplici o più complessi. Non sostituisce i criteri grammaticali né attribuisce a una persona un livello di competenza."
+        },
+        "mapping_status": {
+          "const": "editorial_estimate"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
